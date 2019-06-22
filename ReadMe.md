@@ -17,3 +17,8 @@ To run the notebook Sample_Cosmo.ipynb, you will need the package emcee (version
 7) jupyter-notebook Sample_Cosmo.ipynb
 
 Now the Code should run!
+
+
+The Supernova data is from the Joint Light curve analysis (Betoule et al., arXiv:1401.4064)
+
+Qusar data courtesy of Elisabetta Risaliti; analysis following (Risaliti & Lusso,  arXiv:1505.07118 and arXiv:1811.02590)
