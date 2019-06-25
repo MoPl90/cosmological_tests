@@ -2,7 +2,7 @@ This is my code to (locally) sample the posterior distribution of cosmological a
 
 To run the notebook Sample_Cosmo.ipynb, you will need the package emcee (version 3.0.0). Unfortunately, "pip install emcee" or "conda install -c conda-forge emcee" will install an older version that requires some hacks and the autocorrelation time cannot be calculated. Therefore, the best way to run this is to execute the following steps using anaconda:
 
-1) execute git clone https://github.com/MoPl90/cosmological_tests in your preferred diectory
+1) execute git clone https://github.com/MoPl90/cosmological_tests in your preferred directory
 
 1) conda create -n emcee3 numpy scipy jupyter matplotlib astropy tqdm h5py
 
