@@ -1,20 +1,25 @@
 import numpy as np
 import scipy.integrate as integrate
 from covmat.covmat import mu_cov
+import glob
+from scipy.optimize import curve_fit
+from scipy.interpolate import interp1d
+from scipy.special import i0, i1, k0, k1
+
 
 class cosmology:
     """This class implements the base class for any cosmological model we study. More involved models inherit from this class."""
     
-    c = 3E5 # speed of light in km/s
+    cLight = 3E5 # speed of light in km/s
+    H0 = 70. #the present day Hubble rate in km/s/Mpc
     
     
-    def __init__(self, omegam, omegac, w=-1, H0 = 70.):
+    def __init__(self, omegam, omegac, w=-1):
         """Initialise a cosmological model"""
         self.Omegam = omegam #non-relativistic matter energy density
         self.Omegac = omegac #dark energy density
         self.Omegak = 1 - omegam - omegac #curvature energy density
         self.eos = w #the dark energy equation of state
-        self.H0 = H0 #the present day Hubble rate in km/s/Mpc
         
     def set_energy_densities(self, omegam, omegac):
         """Change the initialised values of Omega_i."""
@@ -41,7 +46,7 @@ class cosmology:
         """Compute the luminosity distance for a given redshift z in this cosmology in [Mpc]. 
         eps is the desired accuracy for the curvature energy density"""
         
-        dH = self.c / self.H0 # Hubble length in Mpc
+        dH = self.cLight / self.H0 # Hubble length in Mpc
         
         #first integrate to obtain the comoving distance
         if isinstance(z, float):
@@ -197,25 +202,82 @@ class Quasar_data:
 
 
 
-class RCdata:
-	"""Objects of this class represent the SPARC rotation curve data sample. This is relevant for testing conformal gravity."""
 
-	def __init__(self):
-		RCdata = []
-		name = []
-		for fname in glob.glob('Rotmod_LTG/*.dat'):
+import warnings
+warnings.simplefilter("ignore")
+
+
+class RCdata:
+	"""Objects of this class represent the SPARC rotation curve data sample (arXiv:1606.09251). This is relevant for testing conformal gravity."""
+
+	GN =  4.301E3 #GN * 10^9 Msol / 1kpc in (km/s)^2
+	cLight = 3E5 # speed of light in km/s
+
+	def __init__(self, params):
+		self.data = []
+		self.names = []
+		for fname in glob.glob('data/Rotmod_LTG/*.dat'):
 			file = open(fname, 'r')
-			name.append(fname.replace('Rotmod_LTG/', '').replace('_rotmod.dat', ''))
+			self.names.append(fname.replace('data/Rotmod_LTG/', '').replace('_rotmod.dat', ''))
 			galaxy = [] 
 			for line in file:
 				if line[0] !='#':
 				    galaxy.append([eval(el) for el in line.lstrip('*').split()])
-			RCdata.append(np.asarray(galaxy))    
-		self.names = np.asarray(names)
-		self.data = np.asarray(RCdata)
+			self.data.append(np.asarray(galaxy))    
+		self.data = np.asarray(self.data) #The SPARC data sample
+		self.gamma0, self.kappa = params #Conformal Gravity parameters in kpc^-1 and kpc^-2 respectively, see e.g. arXiv:1211:0188
+		self.loglike = 0. 
 
-	def get_names():
-		return self.names
+	def get_names(self, which = -1):
+		if which == -1:
+			return self.names
+		else:
+			return np.asarray(self.names)[which]
 
-	def get_data():
-		return self.data
+	def get_data(self, which = 'all'):
+		if isinstance(which, str) and which == 'all':
+			return self.data
+		elif isinstance(which, str):
+			return self.data[self.names.index(which)]
+		else:
+			index = [self.names.index(w) for w in which] 
+			return self.data[index] 
+
+	def get_loglike(self):
+		return self.loglike
+
+	def reset_loglike(self):
+		self.loglike = 0.
+
+	def set_param(self, new_params):
+		self.gamma0, self.kappa = new_params 
+
+	def vCG_square(self, r): # units of 1E9 Msol
+		"""Compute the *non-local* Conformal Gravity contribution to the rotational velocity."""
+		r = r / 1E3# Mpc ##or * 3.086E21 #cm
+		return self.cLight**2 * self.gamma0 * r / 2 - self.kappa * self.cLight**2 * r**2
+
+	def vlocal_square (self, r, r0, M0, gamma):
+		"""Compute the *local* standard plus Conformal Gravity contribution to the rotational velocity."""
+		return self.GN * M0 * (r/r0)**2 * (i0(r/2/r0) * k0(r/2/r0) - i1(r/2/r0) * k1(r/2/r0)) + gamma * (r/r0)**2 * i1(r/2/r0) * k1(r/2/r0)
+
+
+	def fit(self):
+		"""Perform a fit of the CG model with given log10(gamma0) and log10(kappa) and compute the log likelihood."""
+		self.reset_loglike()
+
+		for galaxy in self.data:
+			pGas, _ = curve_fit(self.vlocal_square,  galaxy[:,0], galaxy[:,3]**2, p0=[1,10,1], bounds=(0, 500))
+			pDisk, _ = curve_fit(self.vlocal_square,  galaxy[:,0], galaxy[:,4]**2, p0=[1,10,1], bounds=(0, 500))
+			visibleCG = lambda r, YD, YB: self.vlocal_square(r, *pGas) + YD * self.vlocal_square(r, *pDisk) + YD * interp1d(galaxy[:,0], galaxy[:,5]**2, kind='cubic')(r)
+
+
+			def model_vSquared(r, YD, YB):
+				return visibleCG(r, YD, YB) + self.vCG_square(r)
+			(YD, YB), _ = curve_fit(model_vSquared, galaxy[:,0], galaxy[:,1]**2, sigma=galaxy[:,2]**2, p0=[1,1], bounds = (0,5))
+
+				
+			res= -.5 * np.sum( (galaxy[:,1]**2 - model_vSquared(galaxy[:,0], YD, YB))**2 / galaxy[:,2]**2)
+			if ~np.isnan(res):
+				self.loglike += res
+
