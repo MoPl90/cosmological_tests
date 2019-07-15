@@ -194,3 +194,28 @@ class Quasar_data:
         sigmaQ = np.sqrt((5/2/(1-self.gamma) * err_logFX)**2 + s**2)
         
         return sigmaQ
+
+
+
+class RCdata:
+	"""Objects of this class represent the SPARC rotation curve data sample. This is relevant for testing conformal gravity."""
+
+	def __init__(self):
+		RCdata = []
+		name = []
+		for fname in glob.glob('Rotmod_LTG/*.dat'):
+			file = open(fname, 'r')
+			name.append(fname.replace('Rotmod_LTG/', '').replace('_rotmod.dat', ''))
+			galaxy = [] 
+			for line in file:
+				if line[0] !='#':
+				    galaxy.append([eval(el) for el in line.lstrip('*').split()])
+			RCdata.append(np.asarray(galaxy))    
+		self.names = np.asarray(names)
+		self.data = np.asarray(RCdata)
+
+	def get_names():
+		return self.names
+
+	def get_data():
+		return self.data
