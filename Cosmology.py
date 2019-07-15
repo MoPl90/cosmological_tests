@@ -5,17 +5,16 @@ from covmat.covmat import mu_cov
 class cosmology:
     """This class implements the base class for any cosmological model we study. More involved models inherit from this class."""
     
-    H0 = 70.# the Hubble rate today in [km/s/Mpc]
     c = 3E5 # speed of light in km/s
-    dH = c / H0 # Hubble length in Mpc
     
     
-    def __init__(self, omegam, omegac, w=-1):
+    def __init__(self, omegam, omegac, w=-1, H0 = 70.):
         """Initialise a cosmological model"""
         self.Omegam = omegam #non-relativistic matter energy density
         self.Omegac = omegac #dark energy density
         self.Omegak = 1 - omegam - omegac #curvature energy density
         self.eos = w #the dark energy equation of state
+        self.H0 = H0 #the present day Hubble rate in km/s/Mpc
         
     def set_energy_densities(self, omegam, omegac):
         """Change the initialised values of Omega_i."""
@@ -42,13 +41,22 @@ class cosmology:
         """Compute the luminosity distance for a given redshift z in this cosmology in [Mpc]. 
         eps is the desired accuracy for the curvature energy density"""
         
+        dH = self.c / self.H0 # Hubble length in Mpc
+        
         #first integrate to obtain the comoving distance
-        dC = self.dH * integrate.quad(lambda x: 1/self.E(x), 0, z)[0]
+        if isinstance(z, float):
+            dC = dH * integrate.quad(lambda x: 1/self.E(x), 0, z)[0]
+        elif isinstance(z, (list, np.ndarray)):
+            z_int = np.append([0], z)
+            dC = dH * integrate.cumtrapz(1/self.E(z_int), z_int)
+        else: 
+            raise ValueError('z must be a float or array!')
+            
         
         if self.Omegak > eps: #negative curvature Universe
-            sinhk = self.dH*np.sinh(np.sqrt(np.abs(self.Omegak)) * dC/self.dH)/np.sqrt(np.abs(self.Omegak))
+            sinhk = dH*np.sinh(np.sqrt(np.abs(self.Omegak)) * dC/dH)/np.sqrt(np.abs(self.Omegak))
         elif self.Omegak < - eps: #positive curvature Universe
-            sinhk = self.dH*np.sin(np.sqrt(np.abs(self.Omegak)) * dC/self.dH)/np.sqrt(np.abs(self.Omegak))
+            sinhk = dH*np.sin(np.sqrt(np.abs(self.Omegak)) * dC/dH)/np.sqrt(np.abs(self.Omegak))
         else: #flat Universe
             sinhk = dC
 
@@ -72,9 +80,19 @@ class cosmology:
         else:
             raise ValueError('Data has wrong format.')
             
-        model = np.array([self.distance_modulus(zi) for zi in z])
+        model = self.distance_modulus(z)
         
-        return -0.5 * np.dot(np.dot((model - DM_data), np.linalg.inv(Cov)), (model - DM_data)) - .5 * np.sum(np.diag(np.log(np.linalg.eigvalsh(Cov))))
+
+        if len(Cov.shape) == 2:
+            Cov_inv = np.linalg.inv(Cov)
+            Cov_eigvals = np.linalg.eigvalsh(Cov)
+        elif len(Cov.shape) == 1:
+            Cov_inv = np.diag(1/Cov)
+            Cov_eigvals = Cov
+        else:
+            raise ValueError('Cov must me 1d or 2d array')
+        
+        return -0.5 * ((model - DM_data) @ Cov_inv @ (model - DM_data)) - .5 * np.sum(np.log(Cov_eigvals))
         
         
         
@@ -102,12 +120,12 @@ class Supernova_data:
         return self.param
     
     def set_param(self, new_param):
-        if new_param.shape[1] != 4:
+        if len(new_param) != 4:
             raise ValueError('Parameters have wrong format: param = (a, b, MB, delta_Mhost)')
         self.param = new_param
         
     def distance_modulus(self):
-        a, b, MB, delta_Mhost = self.param.T
+        a, b, MB, delta_Mhost = self.param
         z, mb, x1, c, Mhost = self.data.T
             
         DM_SN = mb + a * x1 - b * c - (MB + np.heaviside(Mhost-10,1) * delta_Mhost)
@@ -115,7 +133,7 @@ class Supernova_data:
         return np.array([z, DM_SN]).T
     
     def delta_distance_modulus(self):
-        a, b, MB = self.param.T[:3]
+        a, b, MB = self.param[:3]
         z = self.data.T[0]
         del_mb, del_x1, del_C = self.err.T
         
@@ -152,7 +170,7 @@ class Quasar_data:
         return self.gamma
     
     def set_param(self, new_param):
-        if new_param.shape[1] != 2: 
+        if len(new_param) != 2: 
             raise ValueError('Parameters have wrong format: param = (beta_prime, s)')
         self.param = new_param
         
@@ -161,7 +179,7 @@ class Quasar_data:
 
         
     def distance_modulus(self):
-        beta_prime = self.param.T[:1]
+        beta_prime = self.param[0]
         z, logLUV, logLX, logFUV, logFX = self.data.T
     
         DM_Q = 5 / 2 / (self.gamma-1) * (logFX - self.gamma * logFUV + beta_prime)
@@ -169,10 +187,10 @@ class Quasar_data:
         return np.array([z, DM_Q]).T
         
     def delta_distance_modulus(self):
-        s = self.param.T[1]
+        s = self.param[1]
         z = self.data.T[0]
         err_logFX = self.err
        
         sigmaQ = np.sqrt((5/2/(1-self.gamma) * err_logFX)**2 + s**2)
         
-        return np.diag(sigmaQ)
+        return sigmaQ
