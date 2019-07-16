@@ -208,7 +208,7 @@ warnings.simplefilter("ignore")
 
 
 class RCdata:
-	"""Objects of this class represent the SPARC rotation curve data sample (arXiv:1606.09251). This is relevant for testing conformal gravity."""
+	"""Objects of this class represent the SPARC rotation curve data sample (arXiv:1606.09251), relevant for testing conformal gravity."""
 
 	GN =  4.301E3 #GN * 10^9 Msol / 1kpc in (km/s)^2
 	cLight = 3E5 # speed of light in km/s
