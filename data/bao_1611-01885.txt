@@ -1,0 +1,9 @@
+#survey #redshift #d_z(z) #delta d_z(z)
+6dFGS 0.106 0.3360 0.0150
+MGS 0.15 0.2239 0.0084
+BOSS-LOWZ 0.32 0.1181 0.0024
+SDSS(R) 0.35 0.1126 0.0022
+BOSS-CMASS 0.57 0.0726 0.0007
+WiggleZ 0.44 0.073
+WiggleZ 0.6 0.0726
+WiggleZ 0.73 0.0592

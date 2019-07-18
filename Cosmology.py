@@ -11,12 +11,12 @@ class cosmology:
     """This class implements the base class for any cosmological model we study. More involved models inherit from this class."""
     
     cLight = 3E5 # speed of light in km/s
-    H0 = 70. #the present day Hubble rate in km/s/Mpc
+  
     
-    
-    def __init__(self, omegam, omegac, w=-1):
+    def __init__(self, omegam, omegar, omegac, w=-1):
         """Initialise a cosmological model"""
         self.Omegam = omegam #non-relativistic matter energy density
+        self.Omegar = omegar #relativistic matter energy density
         self.Omegac = omegac #dark energy density
         self.Omegak = 1 - omegam - omegac #curvature energy density
         self.eos = w #the dark energy equation of state
@@ -24,29 +24,30 @@ class cosmology:
     def set_energy_densities(self, omegam, omegac):
         """Change the initialised values of Omega_i."""
         self.Omegam = omegam #non-relativistic matter energy density
+        self.Omegar = omegar #relativistic matter energy density
         self.Omegac = omegac #dark energy density
         self.Omegak = 1 - omegam - omegac #curvature energy density
         
-    def get_energy_densities(self, omegam, omegac):
+    def get_energy_densities(self, omegam, omegar, omegac):
         """Return the current values of Omega_i as a numpy array."""
         
-        return np.array([self.Omegam, self.Omegac, self.Omegak])
+        return np.array([self.Omegam, self.Omegar, self.Omegac, self.Omegak])
 
-    def get_eos(self, omegam, omegac):
+    def get_eos(self, omegam, omegar, omegac):
         """Return the equation of state for this cosmology. This parameter can not be changed once initialized!"""
         
         return self.eos
     
     def E(self, z):
         """Compute the dimensionless Hubble rate H(z)/H0 for a given redshift z."""
-        return np.sqrt(self.Omegam * (1+z)**3 + self.Omegak * (1+z)**2 + self.Omegac * (1+z)**(3*(1 + self.eos)))
+        return np.sqrt(self.Omegar * (1+z)**4 + self.Omegam * (1+z)**3 + self.Omegak * (1+z)**2 + self.Omegac * (1+z)**(3*(1 + self.eos)))
         
 
     def luminosity_distance(self, z, eps = 1E-3):
         """Compute the luminosity distance for a given redshift z in this cosmology in [Mpc]. 
         eps is the desired accuracy for the curvature energy density"""
         
-        dH = self.cLight / self.H0 # Hubble length in Mpc
+        dH = self.cLight / H0 # Hubble length in Mpc
         
         #first integrate to obtain the comoving distance
         if isinstance(z, float):
@@ -95,7 +96,7 @@ class cosmology:
             Cov_inv = np.diag(1/Cov)
             Cov_eigvals = Cov
         else:
-            raise ValueError('Cov must me 1d or 2d array')
+            raise ValueError('Cov must be 1d or 2d array')
         
         return -0.5 * ((model - DM_data) @ Cov_inv @ (model - DM_data)) - .5 * np.sum(np.log(Cov_eigvals))
         
@@ -198,8 +199,62 @@ class Quasar_data:
        
         sigmaQ = np.sqrt((5/2/(1-self.gamma) * err_logFX)**2 + s**2)
         
-        return sigmaQ
+        return sigmaQ0
 
+
+class BAO_data:
+    """Objects of this class represent BAO data sets."""
+    
+    cLight = 3E5 # speed of light in km/s
+    
+    
+    def __init__(self, data, err, param):
+        if data.shape[1] != 2 and err.shape[1] != 1:
+            raise ValueError('Data has wrong format: data = (z, DM/rd)')
+        else:
+            self.data = data   
+            self.err = err   
+            self.param = param
+            
+    def get_data(self):
+        return self.data
+    
+    def get_err(self):
+        return self.err
+    
+    def get_param(self):
+        return self.param
+ 
+    def sound_speed(self,z):
+        omega_baryon, omega_gamma = self.param.T
+    
+        soundspeed = self.cLight/np.sqrt(3*(1+3/4*omega_baryon/omega_gamma /(1+z)))  
+        
+        return soundspeed
+    
+    def com_sound_horizon(self,z_d,H0,cosmo):
+            
+        comsoundhorizon = 1/H0*integrate.quad(lambda z:self.sound_speed(z)/(cosmo.E(z)),z_d,np.inf)[0]
+        
+        return comsoundhorizon
+ 
+         
+ #   def distance_modulus(self):
+ #       beta_prime = self.param[0]
+ #       z, logLUV, logLX, logFUV, logFX = self.data.T
+ #   
+ #       DM_Q = 5 / 2 / (self.gamma-1) * (logFX - self.gamma * logFUV + beta_prime)
+        
+ #       return np.array([z, DM_Q]).T
+        
+ #   def delta_distance_modulus(self):
+ #       s = self.param[1]
+ #       z = self.data.T[0]
+ #       err_logFX = self.err
+       
+#        sigmaQ = np.sqrt((5/2/(1-self.gamma) * err_logFX)**2 + s**2)
+        
+#        return sigmaQ
 
 
 
