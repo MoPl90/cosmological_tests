@@ -1,0 +1,8 @@
+#survey         #redshift    #quantity       #measurement #pluserror #minuserror 
+6dFGS           0.106        rd/DV           0.336        0.015      0.015
+BOSS_DR12       0.38         DM*rd_fid/rd    1512         25         25
+BOSS_DR12       0.51         DM*rd_fid/rd    1975         30         30
+BOSS_DR12       0.61         DM*rd_fid/rd    2307         37         37
+eBOSS_DR14_QSO  1.52         DA*rd_fid/rd    1850         90         115
+BOSS_DR12_Lyα   2.33         DM/rd           37.8         2.1        2.1
+DR12_QSOxLyα    2.40         DM/rd           35.7         1.7        1.7

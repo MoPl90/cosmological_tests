@@ -199,7 +199,7 @@ class Quasar_data:
        
         sigmaQ = np.sqrt((5/2/(1-self.gamma) * err_logFX)**2 + s**2)
         
-        return sigmaQ0
+        return sigmaQ
 
 
 class BAO_data:
