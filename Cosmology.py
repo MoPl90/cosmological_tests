@@ -11,7 +11,7 @@ class cosmology:
     """This class implements the base class for any cosmological model we study. More involved models inherit from this class."""
     
     cLight = 3E5 # speed of light in km/s
-  
+    H0 = 70. #the present day Hubble rate in km/s/Mps
     
     def __init__(self, omegam, omegar, omegac, w=-1):
         """Initialise a cosmological model"""
@@ -38,23 +38,23 @@ class cosmology:
         
         return self.eos
     
-    def E(self, z):
-        """Compute the dimensionless Hubble rate H(z)/H0 for a given redshift z."""
-        return np.sqrt(self.Omegar * (1+z)**4 + self.Omegam * (1+z)**3 + self.Omegak * (1+z)**2 + self.Omegac * (1+z)**(3*(1 + self.eos)))
+    def H(self, z):
+        """Compute the Hubble rate H(z) for a given redshift z."""
+        return self.H0 * np.sqrt(self.Omegar * (1+z)**4 + self.Omegam * (1+z)**3 + self.Omegak * (1+z)**2 + self.Omegac * (1+z)**(3*(1 + self.eos)))
         
 
     def luminosity_distance(self, z, eps = 1E-3):
         """Compute the luminosity distance for a given redshift z in this cosmology in [Mpc]. 
         eps is the desired accuracy for the curvature energy density"""
         
-        dH = self.cLight / H0 # Hubble length in Mpc
+        dH = self.cLight / self.H0 # Hubble length in Mpc
         
         #first integrate to obtain the comoving distance
         if isinstance(z, float):
-            dC = dH * integrate.quad(lambda x: 1/self.E(x), 0, z)[0]
+            dC = self.cLight * integrate.quad(lambda x: 1/self.H(x), 0, z)[0]
         elif isinstance(z, (list, np.ndarray)):
             z_int = np.append([0], z)
-            dC = dH * integrate.cumtrapz(1/self.E(z_int), z_int)
+            dC = self.cLight * integrate.cumtrapz(1/self.H(z_int), z_int)
         else: 
             raise ValueError('z must be a float or array!')
             
@@ -226,15 +226,15 @@ class BAO_data:
         return self.param
  
     def sound_speed(self,z):
-        omega_baryon, omega_gamma = self.param.T
+        omega_baryon, omega_gamma = self.param
     
         soundspeed = self.cLight/np.sqrt(3*(1+3/4*omega_baryon/omega_gamma /(1+z)))  
         
         return soundspeed
     
-    def com_sound_horizon(self,z_d,H0,cosmo):
+    def com_sound_horizon(self,z_d,cosmo):
             
-        comsoundhorizon = 1/H0*integrate.quad(lambda z:self.sound_speed(z)/(cosmo.E(z)),z_d,np.inf)[0]
+        comsoundhorizon = integrate.quad(lambda z:self.sound_speed(z)/(cosmo.H(z)),z_d,np.inf)[0]
         
         return comsoundhorizon
  
