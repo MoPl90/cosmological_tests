@@ -254,7 +254,7 @@ class RCdata:
 
 	def vCG_square(self, r): # units of 1E9 Msol
 		"""Compute the *non-local* Conformal Gravity contribution to the rotational velocity."""
-		r = r / 1E3# Mpc ##or * 3.086E21 #cm
+		r = r / 1E6# Gpc ##or * 3.086E21 #cm
 		return self.cLight**2 * self.gamma0 * r / 2 - self.kappa * self.cLight**2 * r**2
 
 	def vlocal_square (self, r, r0, M0, gamma):
