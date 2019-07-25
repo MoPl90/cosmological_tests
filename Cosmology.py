@@ -11,35 +11,37 @@ class cosmology:
     """This class implements the base class for any cosmological model we study. More involved models inherit from this class."""
     
     cLight = 3E5 # speed of light in km/s
-    H0 = 70. #the present day Hubble rate in km/s/Mpc
+    #H0 = 70. #the present day Hubble rate in km/s/Mps
     
-    
-    def __init__(self, omegam, omegac, w=-1):
+    def __init__(self, omegam, omegar, omegac, w=-1, Hzero=70):
         """Initialise a cosmological model"""
         self.Omegam = omegam #non-relativistic matter energy density
+        self.Omegar = omegar #relativistic matter energy density
         self.Omegac = omegac #dark energy density
         self.Omegak = 1 - omegam - omegac #curvature energy density
         self.eos = w #the dark energy equation of state
+        self.H0 = Hzero #the present day Hubble rate in km/s/Mps
         
     def set_energy_densities(self, omegam, omegac):
         """Change the initialised values of Omega_i."""
         self.Omegam = omegam #non-relativistic matter energy density
+        self.Omegar = omegar #relativistic matter energy density
         self.Omegac = omegac #dark energy density
         self.Omegak = 1 - omegam - omegac #curvature energy density
         
-    def get_energy_densities(self, omegam, omegac):
+    def get_energy_densities(self, omegam, omegar, omegac):
         """Return the current values of Omega_i as a numpy array."""
         
-        return np.array([self.Omegam, self.Omegac, self.Omegak])
+        return np.array([self.Omegam, self.Omegar, self.Omegac, self.Omegak])
 
-    def get_eos(self, omegam, omegac):
+    def get_eos(self, omegam, omegar, omegac):
         """Return the equation of state for this cosmology. This parameter can not be changed once initialized!"""
         
         return self.eos
     
-    def E(self, z):
-        """Compute the dimensionless Hubble rate H(z)/H0 for a given redshift z."""
-        return np.sqrt(self.Omegam * (1+z)**3 + self.Omegak * (1+z)**2 + self.Omegac * (1+z)**(3*(1 + self.eos)))
+    def H(self, z):
+        """Compute the Hubble rate H(z) for a given redshift z."""
+        return self.H0 * np.sqrt(self.Omegar * (1+z)**4 + self.Omegam * (1+z)**3 + self.Omegak * (1+z)**2 + self.Omegac * (1+z)**(3*(1 + self.eos)))
         
 
     def luminosity_distance(self, z, eps = 1E-3):
@@ -50,10 +52,10 @@ class cosmology:
         
         #first integrate to obtain the comoving distance
         if isinstance(z, float):
-            dC = dH * integrate.quad(lambda x: 1/self.E(x), 0, z)[0]
+            dC = self.cLight * integrate.quad(lambda x: 1/self.H(x), 0, z)[0]
         elif isinstance(z, (list, np.ndarray)):
             z_int = np.append([0], z)
-            dC = dH * integrate.cumtrapz(1/self.E(z_int), z_int)
+            dC = self.cLight * integrate.cumtrapz(1/self.H(z_int), z_int)
         else: 
             raise ValueError('z must be a float or array!')
             
@@ -73,8 +75,24 @@ class cosmology:
         return 5*(np.log10(np.abs(self.luminosity_distance(z))) + 5)
     
     
-    def log_likelihood(self, data, Cov):
+    def log_likelihood(self, dataObject):
         """Compute the Gaussian log-likelihood for given data tuples (z, DM(z)) and covariance."""
+        
+        
+        
+  
+        if dataObject.name == 'Quasars' or dataObject.name == 'SN':
+            data = dataObject.distance_modulus()
+            Cov = dataObject.delta_distance_modulus()
+        elif dataObject.name == 'BAO':
+            data = dataObject.distance_modulus(self)
+            Cov = dataObject.delta_distance_modulus(self)
+        else:
+            raise ValueError('Data type needs to be associated with input (e.g. BAO, quasars, ...)')
+            
+        
+  
+        # bring data into correct shape in case it isnt:
         
         if data.shape[0] == 2:
             z = data[0]
@@ -85,7 +103,25 @@ class cosmology:
         else:
             raise ValueError('Data has wrong format.')
             
+
+ 
+        #if dataObject.name == 'Quasars' or dataObject.name == 'SN':
+            #data = dataObject.distance_modulus()
+            #Cov = dataObject.delta_distance_modulus()
+        #elif dataObject.name == 'BAO':
+            #data = dataObject.distance_modulus(self)
+            #Cov = 1
+       # else:
+            #raise ValueError('Data type needs to be associated with input (e.g. BAO, quasuars, ...)')
+ 
+ 
+        # define the model DM:
+        
         model = self.distance_modulus(z)
+        
+
+        
+  
         
 
         if len(Cov.shape) == 2:
@@ -95,7 +131,7 @@ class cosmology:
             Cov_inv = np.diag(1/Cov)
             Cov_eigvals = Cov
         else:
-            raise ValueError('Cov must me 1d or 2d array')
+            raise ValueError('Cov must be 1d or 2d array')
         
         return -0.5 * ((model - DM_data) @ Cov_inv @ (model - DM_data)) - .5 * np.sum(np.log(Cov_eigvals))
         
@@ -114,6 +150,7 @@ class Supernova_data:
             self.data = data   
             self.err = err   
             self.param = param
+            self.name = "SN"
         
     def get_data(self):
         return self.data
@@ -161,6 +198,7 @@ class Quasar_data:
             self.data = data   
             self.err = err   
             self.param = param
+            self.name = "Quasars"
             
     def get_data(self):
         return self.data
@@ -199,6 +237,107 @@ class Quasar_data:
         sigmaQ = np.sqrt((5/2/(1-self.gamma) * err_logFX)**2 + s**2)
         
         return sigmaQ
+
+
+class BAO_data:
+    """Objects of this class represent BAO data sets."""
+    
+    cLight = 3E5 # speed of light in km/s
+    z_d = 1089   # redshift of decoupling
+    
+    
+    def __init__(self, data, err, param, dataType):
+        if data.shape[1] != 2 and err.shape[1] != 1:
+            raise ValueError('Data has wrong format: data = (z, DM/rd)')
+        else:
+            self.data = data   
+            self.err = err   
+            self.param = param
+            self.dataType = dataType
+            self.name = "BAO"
+            
+            # take average of errors if not symmetrical
+            if self.err.shape[1] == 2:
+                self.err = (self.err[:, 0]+self.err[:, 1])/2.
+            
+    def get_data(self):
+        return self.data
+    
+    def get_err(self):
+        return self.err
+    
+    def get_param(self):
+        return self.param
+ 
+    def sound_speed(self,z):
+        omega_baryon, omega_gamma = self.param
+    
+        soundspeed = self.cLight/np.sqrt(3*(1+3/4*omega_baryon/omega_gamma /(1+z)))  
+        
+        return soundspeed
+    
+    def com_sound_horizon(self,z_d,cosmo):
+            
+        comsoundhorizon = integrate.quad(lambda z:self.sound_speed(z)/(cosmo.H(z)),z_d,np.inf)[0]
+        
+        return comsoundhorizon
+ 
+         
+    def distance_modulus(self,cosmo):
+        # where our heroes convert all BAO data (which come from a variety of formats) into
+        # the standardised dist mod
+        
+        z, meas = self.data.T
+        dtype = self.dataType
+        
+        rd_fid = 147.78 # fiducial sound horizon in MPc
+        z_d = self.z_d
+        
+        rd = self.com_sound_horizon(z_d,cosmo) # sound horizon for given cosmology
+        
+        DMpairs = np.empty([len(dtype), 2])
+        
+        for line in range(0,len(dtype)): 
+            if dtype[line]=='DM*rd_fid/rd':
+                # calculate lumi dist and DM
+                lumiDist = (1 + z[line]) * meas[line]*rd/rd_fid
+                DMpairs[line] = ( z[line], 5*(np.log10(lumiDist) + 5) )
+                
+            elif dtype[line]=='rd/DV':
+                lumiDist =  (1 + z[line]) * ( (rd/meas[line])**3 * cosmo.H(z[line])/self.cLight/z[line] )**(1/2)
+                DMpairs[line] =  ( z[line], 5*(np.log10(lumiDist) + 5) )             
+                
+            else:
+                raise ValueError('input data doesn\'t have a recognised format')
+
+        return DMpairs
+        
+    def delta_distance_modulus(self,cosmo):
+
+        z, meas = self.data.T
+        dtype = self.dataType
+        
+        rd_fid = 147.78 # fiducial sound horizon in MPc
+        z_d = self.z_d
+        
+        rd = self.com_sound_horizon(z_d,cosmo) # sound horizon for given cosmology
+        
+        sigmaDM = np.empty([len(dtype), 1])
+                
+        for line in range(0,len(dtype)): 
+            if dtype[line]=='DM*rd_fid/rd':
+                # calculate com dist and DM:
+                siglumiDist = (1 + z[line]) * self.err[line]*rd/rd_fid
+                sigmaDM[line] =  5*siglumiDist/meas[line]
+                
+            elif dtype[line]=='rd/DV':
+                sigmaDM[line] =  5*3/2*self.err[line]/meas[line]
+                
+            else:
+                raise ValueError('input data doesn\'t have a recognised format')
+        
+        return sigmaDM.T[0]
+
 
 
 
