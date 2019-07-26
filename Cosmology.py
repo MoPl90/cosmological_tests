@@ -13,7 +13,7 @@ class cosmology:
     cLight = 3E5 # speed of light in km/s
     #H0 = 70. #the present day Hubble rate in km/s/Mps
     
-    def __init__(self, omegam, omegar, omegac, w=-1, Hzero=70):
+    def __init__(self, omegam, omegac, omegar=0, w=-1, Hzero=70):
         """Initialise a cosmological model"""
         self.Omegam = omegam #non-relativistic matter energy density
         self.Omegar = omegar #relativistic matter energy density
