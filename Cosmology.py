@@ -268,7 +268,12 @@ class BAO_data:
     
     def get_param(self):
         return self.param
- 
+    
+    def set_param(self, new_param):
+        if len(new_param) != 2: 
+            raise ValueError('Parameters have wrong format: param = (beta_prime, s)')
+        self.param = new_param
+        
     def sound_speed(self,z):
         omega_baryon, omega_gamma = self.param
     
