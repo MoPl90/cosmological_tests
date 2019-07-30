@@ -7,6 +7,8 @@ from scipy.interpolate import interp1d
 from scipy.special import i0, i1, k0, k1
 
 
+eV = 7.461E33#km/s/Mpc
+
 class cosmology:
     """This class implements the base class for any cosmological model we study. More involved models inherit from this class."""
     
@@ -21,6 +23,8 @@ class cosmology:
         self.Omegak = 1 - omegam - omegac #curvature energy density
         self.eos = w #the dark energy equation of state
         self.H0 = Hzero #the present day Hubble rate in km/s/Mps
+
+        pass
         
     def set_energy_densities(self, omegam, omegac):
         """Change the initialised values of Omega_i."""
@@ -29,6 +33,8 @@ class cosmology:
         self.Omegac = omegac #dark energy density
         self.Omegak = 1 - omegam - omegac #curvature energy density
         
+        return self
+
     def get_energy_densities(self, omegam, omegar, omegac):
         """Return the current values of Omega_i as a numpy array."""
         
@@ -135,9 +141,115 @@ class cosmology:
         
         return -0.5 * ((model - DM_data) @ Cov_inv @ (model - DM_data)) - .5 * np.sum(np.log(Cov_eigvals))
         
+
+
+
+
+class bigravity_cosmology(cosmology):
+    """This class inherits from the cosmology base class and implements a bigravity cosmology."""
+
+    def __init__(self, log10m, theta, b0, b1, b2, b3, omegam, omegar=0, Hzero=70.):
+        super().__init__(omegam, 0, omegar, w=-1, Hzero=Hzero)
+        self.log10mg = log10m
+        self.t = theta
+        self.betas = np.array([b0, b1, b2, b3])
+
+    def set_bigra_params(self, log10m, theta, b0, b1, b2, b3):
+        """
+        Change the bigravity model parameters of an existing object.
+
+        Returns:
+        The modified bigravity_cosmology object
+        """
+
+        self.log10mg = log10m
+        self.t = theta
+        self.betas = np.array([b0, b1, b2, b3])
+        return self
+    
+    def set_cosmo_params(self, omegam, omegar=0, Hzero=70.):
+        """
+        Change the cosmological parameters of an existing object.
+
+        Returns:
+
+        The modified bigravity_cosmology object
+        """
+
+        super().__init__(omegam, 0, omegar, w=-1, Hzero=Hzero)
+
+        return self
+
+    def Bianchi(self, z): 
+        """
+        This is Kevin's exact solution to the Bianchi-/Master-Equation of bigravity cosmology.
+
+        Input:    
+        redshift z
+
+        Returns:
+        y = b(z) / a(z) 
+        """ 
+        
+        x = self.log10mg + 32 # log10(mg/10**-32)
+        b0, b1, b2, b3 = self.betas
         
         
+        a0 = - b1 / ( np.tan(self.t) * b3) + 0j
+        a1 = lambda z: (-3*b2 + b0*np.tan(self.t) + (0.140096333403*0.7**2*(1 + z)**3*self.Omegam*(1 + np.tan(self.t)))/10**(2*x))/b3/np.tan(self.t)+0j
+        a2 = (3*b1)/b3 - 3*1/np.tan(self.t)+0j
+        try:
+            x1 = a2/3. - (2**0.3333333333333333*(-12*a0 - a2**2))/(3.*(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333) +  (27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333/(3.*2**0.3333333333333333)
+            if np.any(np.imag(x1) > 10**-6 * np.real(x1)):
+                raise RuntimeError
+        except RuntimeError:
+            return -10 * np.ones_like(z)
         
+        if np.all(x1 >= a2) and np.all(-a2 - x1 + (2*a1(z))/np.sqrt(-a2 + x1) >= 0.) and np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.) and np.all(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.) and np.all(0.16666666666666666*(-8*a2 - (2*2**0.3333333333333333*(12*a0 + a2**2))/(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333 - 2**0.6666666666666666*(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333 + (12*np.sqrt(6)*a1(0))/np.sqrt(-4*a2 + (2*2**0.3333333333333333*(12*a0 + a2**2))/(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333 + 2**0.6666666666666666*(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333))):
+            return np.real(-np.sqrt(-a2 + x1)/2. + np.sqrt(-a2 - x1 + (2*a1(z))/np.sqrt(-a2 + x1))/2.)
+        else: 
+            return -1 * np.ones_like(z)
+        
+        
+    def H(self, z):
+        """
+        This method overrides the cosmology.H(z) function, which computes the Hubble rate as a function of redshift. This method uses the bigravity cosmology instead.
+        
+        Input:
+        resdshift z
+        
+        Output:
+        Hubble rate H(z)
+        """
+        
+        b0, b1, b2, b3 = self.betas
+        y = self.Bianchi(z)
+        m = 10**self.log10mg
+        
+        if isinstance(y, float) or isinstance(y, int):
+            if y<0:
+                return 0.
+            else:
+                CC_dyn = m**2 * np. sin(self.t)**2 * (b0*np.ones_like(y) + 3*b1*y + 3*b2*y**2 + b3*y**3)/3.
+                hubble_squared = self.H0**2 * (self.Omegam * (1+z)**3 )#+ Omegak * (1+z)**2 + Omegac) 
+                
+                return np.sqrt(hubble_squared + CC_dyn*eV)
+            
+        if np.any(y<0):
+            return np.zeros_like(z)
+        else:
+            CC_dyn = m**2 * np. sin(self.t)**2 * (b0*np.ones_like(y) + 3*b1*y + 3*b2*y**2 + b3*y**3)/3.
+            hubble_squared = self.H0**2 * (self.Omegam * (1+z)**3 )#+ Omegak * (1+z)**2 + Omegac) 
+
+            return np.sqrt(hubble_squared + CC_dyn.T*eV)
+
+       
+    
+    
+    
+    
+    
+    
 class Supernova_data:
     """Objects of this class represent SN data sets. Can be used to calculate the standardized distance modulus for given nuissance parameters (a, b, MB, delta_Mhost). Data must have shape (N,5)."""
     
@@ -352,76 +464,76 @@ warnings.simplefilter("ignore")
 
 
 class RCdata:
-	"""Objects of this class represent the SPARC rotation curve data sample (arXiv:1606.09251), relevant for testing conformal gravity."""
+    """Objects of this class represent the SPARC rotation curve data sample (arXiv:1606.09251), relevant for testing conformal gravity."""
 
-	GN =  4.301E3 #GN * 10^9 Msol / 1kpc in (km/s)^2
-	cLight = 3E5 # speed of light in km/s
+    GN =  4.301E3 #GN * 10^9 Msol / 1kpc in (km/s)^2
+    cLight = 3E5 # speed of light in km/s
 
-	def __init__(self, params):
-		self.data = []
-		self.names = []
-		for fname in glob.glob('data/Rotmod_LTG/*.dat'):
-			file = open(fname, 'r')
-			self.names.append(fname.replace('data/Rotmod_LTG/', '').replace('_rotmod.dat', ''))
-			galaxy = [] 
-			for line in file:
-				if line[0] !='#':
-				    galaxy.append([eval(el) for el in line.lstrip('*').split()])
-			self.data.append(np.asarray(galaxy))    
-		self.data = np.asarray(self.data) #The SPARC data sample
-		self.gamma0, self.kappa = params #Conformal Gravity parameters in kpc^-1 and kpc^-2 respectively, see e.g. arXiv:1211:0188
-		self.loglike = 0. 
+    def __init__(self, params):
+        self.data = []
+        self.names = []
+        for fname in glob.glob('data/Rotmod_LTG/*.dat'):
+            file = open(fname, 'r')
+            self.names.append(fname.replace('data/Rotmod_LTG/', '').replace('_rotmod.dat', ''))
+            galaxy = [] 
+            for line in file:
+                if line[0] !='#':
+                    galaxy.append([eval(el) for el in line.lstrip('*').split()])
+            self.data.append(np.asarray(galaxy))    
+        self.data = np.asarray(self.data) #The SPARC data sample
+        self.gamma0, self.kappa = params #Conformal Gravity parameters in kpc^-1 and kpc^-2 respectively, see e.g. arXiv:1211:0188
+        self.loglike = 0. 
 
-	def get_names(self, which = -1):
-		if which == -1:
-			return self.names
-		else:
-			return np.asarray(self.names)[which]
+    def get_names(self, which = -1):
+        if which == -1:
+            return self.names
+        else:
+            return np.asarray(self.names)[which]
 
-	def get_data(self, which = 'all'):
-		if isinstance(which, str) and which == 'all':
-			return self.data
-		elif isinstance(which, str):
-			return self.data[self.names.index(which)]
-		else:
-			index = [self.names.index(w) for w in which] 
-			return self.data[index] 
+    def get_data(self, which = 'all'):
+        if isinstance(which, str) and which == 'all':
+            return self.data
+        elif isinstance(which, str):
+            return self.data[self.names.index(which)]
+        else:
+            index = [self.names.index(w) for w in which] 
+            return self.data[index] 
 
-	def get_loglike(self):
-		return self.loglike
+    def get_loglike(self):
+        return self.loglike
 
-	def reset_loglike(self):
-		self.loglike = 0.
+    def reset_loglike(self):
+        self.loglike = 0.
 
-	def set_param(self, new_params):
-		self.gamma0, self.kappa = new_params 
+    def set_param(self, new_params):
+        self.gamma0, self.kappa = new_params 
 
-	def vCG_square(self, r): # units of 1E9 Msol
-		"""Compute the *non-local* Conformal Gravity contribution to the rotational velocity."""
-		r = r / 1E6# Gpc ##or * 3.086E21 #cm
-		return self.cLight**2 * self.gamma0 * r / 2 - self.kappa * self.cLight**2 * r**2
+    def vCG_square(self, r): # units of 1E9 Msol
+        """Compute the *non-local* Conformal Gravity contribution to the rotational velocity."""
+        r = r / 1E6# Gpc ##or * 3.086E21 #cm
+        return self.cLight**2 * self.gamma0 * r / 2 - self.kappa * self.cLight**2 * r**2
 
-	def vlocal_square (self, r, r0, M0, gamma):
-		"""Compute the *local* standard plus Conformal Gravity contribution to the rotational velocity."""
-		return self.GN * M0 * (r/r0)**2 * (i0(r/2/r0) * k0(r/2/r0) - i1(r/2/r0) * k1(r/2/r0)) + gamma * (r/r0)**2 * i1(r/2/r0) * k1(r/2/r0)
-
-
-	def fit(self):
-		"""Perform a fit of the CG model with given log10(gamma0) and log10(kappa) and compute the log likelihood."""
-		self.reset_loglike()
-
-		for galaxy in self.data:
-			pGas, _ = curve_fit(self.vlocal_square,  galaxy[:,0], galaxy[:,3]**2, p0=[1,10,1], bounds=(0, 500))
-			pDisk, _ = curve_fit(self.vlocal_square,  galaxy[:,0], galaxy[:,4]**2, p0=[1,10,1], bounds=(0, 500))
-			visibleCG = lambda r, YD, YB: self.vlocal_square(r, *pGas) + YD * self.vlocal_square(r, *pDisk) + YD * interp1d(galaxy[:,0], galaxy[:,5]**2, kind='cubic')(r)
+    def vlocal_square (self, r, r0, M0, gamma):
+        """Compute the *local* standard plus Conformal Gravity contribution to the rotational velocity."""
+        return self.GN * M0 * (r/r0)**2 * (i0(r/2/r0) * k0(r/2/r0) - i1(r/2/r0) * k1(r/2/r0)) + gamma * (r/r0)**2 * i1(r/2/r0) * k1(r/2/r0)
 
 
-			def model_vSquared(r, YD, YB):
-				return visibleCG(r, YD, YB) + self.vCG_square(r)
-			(YD, YB), _ = curve_fit(model_vSquared, galaxy[:,0], galaxy[:,1]**2, sigma=galaxy[:,2]**2, p0=[1,1], bounds = (0,5))
+    def fit(self):
+        """Perform a fit of the CG model with given log10(gamma0) and log10(kappa) and compute the log likelihood."""
+        self.reset_loglike()
 
-				
-			res= -.5 * np.sum( (galaxy[:,1]**2 - model_vSquared(galaxy[:,0], YD, YB))**2 / galaxy[:,2]**2)
-			if ~np.isnan(res):
-				self.loglike += res
+        for galaxy in self.data:
+            pGas, _ = curve_fit(self.vlocal_square,  galaxy[:,0], galaxy[:,3]**2, p0=[1,10,1], bounds=(0, 500))
+            pDisk, _ = curve_fit(self.vlocal_square,  galaxy[:,0], galaxy[:,4]**2, p0=[1,10,1], bounds=(0, 500))
+            visibleCG = lambda r, YD, YB: self.vlocal_square(r, *pGas) + YD * self.vlocal_square(r, *pDisk) + YD * interp1d(galaxy[:,0], galaxy[:,5]**2, kind='cubic')(r)
+
+
+            def model_vSquared(r, YD, YB):
+                return visibleCG(r, YD, YB) + self.vCG_square(r)
+            (YD, YB), _ = curve_fit(model_vSquared, galaxy[:,0], galaxy[:,1]**2, sigma=galaxy[:,2]**2, p0=[1,1], bounds = (0,5))
+
+                
+            res= -.5 * np.sum( (galaxy[:,1]**2 - model_vSquared(galaxy[:,0], YD, YB))**2 / galaxy[:,2]**2)
+            if ~np.isnan(res):
+                self.loglike += res
 
