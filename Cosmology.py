@@ -6,6 +6,8 @@ from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 from scipy.special import i0, i1, k0, k1
 
+eV = 7.461E33#km/s/Mpc
+
 
 class cosmology:
     """This class implements the base class for any cosmological model we study. More involved models inherit from this class."""
