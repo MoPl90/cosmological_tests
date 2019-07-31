@@ -179,9 +179,9 @@ class Supernova_data:
         z = self.data.T[0]
         del_mb, del_x1, del_C = self.err.T
         
-        sigmaSN =  del_mb**2 + a**2 * del_x1**2 + b**2 * del_C**2
+        covSN =  del_mb**2 + a**2 * del_x1**2 + b**2 * del_C**2
         
-        return mu_cov(a,b) + np.diag(sigmaSN) 
+        return mu_cov(a,b) + np.diag(covSN) 
     
     
 class Quasar_data:
@@ -234,9 +234,10 @@ class Quasar_data:
         z = self.data.T[0]
         err_logFX = self.err
        
-        sigmaQ = np.sqrt((5/2/(1-self.gamma) * err_logFX)**2 + s**2)
+        #sigmaQ = np.sqrt((5/2/(1-self.gamma) * err_logFX)**2 + s**2)
+        covQ = (5/2/(1-self.gamma) * err_logFX)**2 + s**2
         
-        return sigmaQ
+        return covQ
 
 
 class BAO_data:
@@ -268,7 +269,12 @@ class BAO_data:
     
     def get_param(self):
         return self.param
- 
+    
+    def set_param(self, new_param):
+        if len(new_param) != 2: 
+            raise ValueError('Parameters have wrong format: param = (beta_prime, s)')
+        self.param = new_param
+        
     def sound_speed(self,z):
         omega_baryon, omega_gamma = self.param
     
@@ -330,21 +336,21 @@ class BAO_data:
         
         rd = self.com_sound_horizon(z_d,cosmo) # sound horizon for given cosmology
         
-        sigmaDM = np.empty([len(dtype), 1])
+        covDM = np.empty([len(dtype), 1])
                 
         for line in range(0,len(dtype)): 
             if dtype[line]=='DM*rd_fid/rd' or dtype[line]=='DA*rd_fid/rd':
                 # calculate com dist and DM:
-                sigmaDM[line] =  5*self.err[line]/meas[line]
+                covDM[line] =  (5*self.err[line]/meas[line])**2
                 
             elif dtype[line]=='rd/DV' or dtype[line]=='DV*rd_fid/rd':
-                sigmaDM[line] =  5*3/2*self.err[line]/meas[line]
+                covDM[line] =  (5*3/2*self.err[line]/meas[line])**2
                 
             else:
                 raise ValueError('input data doesn\'t have a recognised format')
         
-        return sigmaDM.T[0]
-
+        #return sigmaDM.T[0]
+        return np.diag(covDM.T[0])   # BAO errors are now also arrays due to the correlations in WiggleZ data
 
 
 
