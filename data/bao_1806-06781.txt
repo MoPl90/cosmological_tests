@@ -1,8 +1,13 @@
 #survey         #redshift    #quantity       #measurement #pluserror #minuserror 
-6dFGS           0.106        rd/DV           0.336        0.015      0.015
+6dFGS           0.106        rd/DV           0.336        0.015      0.015      # these are from the collection in 1806.06781
 BOSS_DR12       0.38         DM*rd_fid/rd    1512         25         25
 BOSS_DR12       0.51         DM*rd_fid/rd    1975         30         30
 BOSS_DR12       0.61         DM*rd_fid/rd    2307         37         37
 eBOSS_DR14_QSO  1.52         DM*rd_fid/rd    4662.        226.8      289.8
 BOSS_DR12_Lyα   2.33         DM*rd_fid/rd    5586.08      310.338    310.338
 DR12_QSOxLyα    2.40         DM*rd_fid/rd    5275.75      251.226    251.226
+SDSS_DR7        0.15         DV*rd_fid/rd    664          25         25         # from 1409.3242
+SDSS_DR11       0.32         DV*rd_fid/rd    1264         25         25         # from 1312.4877
+SDSS_DR11       0.57         DV*rd_fid/rd    2056         20         20         # from 1312.4877
+SDSS_DR11       0.57         DA*rd_fid/rd    1421         20         20         # from 1312.4877
+SDSS_DR7        0.35         DV*rd_fid/rd    1312         25         25         # from 1202.0090
