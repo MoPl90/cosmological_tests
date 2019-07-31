@@ -307,6 +307,14 @@ class BAO_data:
                 # calculate lumi dist and DM
                 lumiDist = (1 + z[line]) * meas[line]*rd/rd_fid
                 DMpairs[line] = ( z[line], 5*(np.log10(lumiDist) + 5) )
+            
+            elif dtype[line]=='DA*rd_fid/rd':
+                lumiDist = (1 + z[line])**2 * meas[line]*rd/rd_fid
+                DMpairs[line] = ( z[line], 5*(np.log10(lumiDist) + 5) )
+            
+            elif dtype[line]=='DV*rd_fid/rd':
+                lumiDist =  (1 + z[line]) * ( (meas[line]*rd/rd_fid)**3 * cosmo.H(z[line])/self.cLight/z[line] )**(1/2)
+                DMpairs[line] =  ( z[line], 5*(np.log10(lumiDist) + 5) )    
                 
             elif dtype[line]=='rd/DV':
                 lumiDist =  (1 + z[line]) * ( (rd/meas[line])**3 * cosmo.H(z[line])/self.cLight/z[line] )**(1/2)
@@ -330,12 +338,11 @@ class BAO_data:
         sigmaDM = np.empty([len(dtype), 1])
                 
         for line in range(0,len(dtype)): 
-            if dtype[line]=='DM*rd_fid/rd':
+            if dtype[line]=='DM*rd_fid/rd' or dtype[line]=='DA*rd_fid/rd':
                 # calculate com dist and DM:
-                siglumiDist = (1 + z[line]) * self.err[line]*rd/rd_fid
-                sigmaDM[line] =  5*siglumiDist/meas[line]
+                sigmaDM[line] =  5*self.err[line]/meas[line]
                 
-            elif dtype[line]=='rd/DV':
+            elif dtype[line]=='rd/DV' or dtype[line]=='DV*rd_fid/rd':
                 sigmaDM[line] =  5*3/2*self.err[line]/meas[line]
                 
             else:
