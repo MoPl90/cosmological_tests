@@ -140,9 +140,6 @@ class cosmology:
             raise ValueError('Cov must be 1d or 2d array')
         
         return -0.5 * ((model - DM_data) @ Cov_inv @ (model - DM_data)) - .5 * np.sum(np.log(Cov_eigvals))
-        
-
-
 
 
 class bigravity_cosmology(cosmology):
@@ -242,14 +239,8 @@ class bigravity_cosmology(cosmology):
             hubble_squared = self.H0**2 * (self.Omegam * (1+z)**3 )#+ Omegak * (1+z)**2 + Omegac) 
 
             return np.sqrt(hubble_squared + CC_dyn.T*eV)
+        
 
-       
-    
-    
-    
-    
-    
-    
 class Supernova_data:
     """Objects of this class represent SN data sets. Can be used to calculate the standardized distance modulus for given nuissance parameters (a, b, MB, delta_Mhost). Data must have shape (N,5)."""
     
