@@ -134,10 +134,107 @@ class cosmology:
             raise ValueError('Cov must be 1d or 2d array')
         
         return -0.5 * ((model - DM_data) @ Cov_inv @ (model - DM_data)) - .5 * np.sum(np.log(Cov_eigvals))
+
+
+class bigravity_cosmology(cosmology):
+    """This class inherits from the cosmology base class and implements a bigravity cosmology."""
+
+    def __init__(self, log10m, theta, b0, b1, b2, b3, omegam, omegar=0, Hzero=70.):
+        super().__init__(omegam, 0, omegar, w=-1, Hzero=Hzero)
+        self.log10mg = log10m
+        self.t = theta
+        self.betas = np.array([b0, b1, b2, b3])
+
+    def set_bigra_params(self, log10m, theta, b0, b1, b2, b3):
+        """
+        Change the bigravity model parameters of an existing object.
+
+        Returns:
+        The modified bigravity_cosmology object
+        """
+
+        self.log10mg = log10m
+        self.t = theta
+        self.betas = np.array([b0, b1, b2, b3])
+        return self
+    
+    def set_cosmo_params(self, omegam, omegar=0, Hzero=70.):
+        """
+        Change the cosmological parameters of an existing object.
+
+        Returns:
+
+        The modified bigravity_cosmology object
+        """
+
+        super().__init__(omegam, 0, omegar, w=-1, Hzero=Hzero)
+
+        return self
+
+    def Bianchi(self, z): 
+        """
+        This is Kevin's exact solution to the Bianchi-/Master-Equation of bigravity cosmology.
+
+        Input:    
+        redshift z
+
+        Returns:
+        y = b(z) / a(z) 
+        """ 
+        
+        x = self.log10mg + 32 # log10(mg/10**-32)
+        b0, b1, b2, b3 = self.betas
         
         
+        a0 = - b1 / ( np.tan(self.t) * b3) + 0j
+        a1 = lambda z: (-3*b2 + b0*np.tan(self.t) + (0.140096333403*0.7**2*(1 + z)**3*self.Omegam*(1 + np.tan(self.t)))/10**(2*x))/b3/np.tan(self.t)+0j
+        a2 = (3*b1)/b3 - 3*1/np.tan(self.t)+0j
+        try:
+            x1 = a2/3. - (2**0.3333333333333333*(-12*a0 - a2**2))/(3.*(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333) +  (27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333/(3.*2**0.3333333333333333)
+            if np.any(np.imag(x1) > 10**-6 * np.real(x1)):
+                raise RuntimeError
+        except RuntimeError:
+            return -10 * np.ones_like(z)
+        
+        if np.all(x1 >= a2) and np.all(-a2 - x1 + (2*a1(z))/np.sqrt(-a2 + x1) >= 0.) and np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.) and np.all(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.) and np.all(0.16666666666666666*(-8*a2 - (2*2**0.3333333333333333*(12*a0 + a2**2))/(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333 - 2**0.6666666666666666*(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333 + (12*np.sqrt(6)*a1(0))/np.sqrt(-4*a2 + (2*2**0.3333333333333333*(12*a0 + a2**2))/(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333 + 2**0.6666666666666666*(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333))):
+            return np.real(-np.sqrt(-a2 + x1)/2. + np.sqrt(-a2 - x1 + (2*a1(z))/np.sqrt(-a2 + x1))/2.)
+        else: 
+            return -1 * np.ones_like(z)
         
         
+    def H(self, z):
+        """
+        This method overrides the cosmology.H(z) function, which computes the Hubble rate as a function of redshift. This method uses the bigravity cosmology instead.
+        
+        Input:
+        resdshift z
+        
+        Output:
+        Hubble rate H(z)
+        """
+        
+        b0, b1, b2, b3 = self.betas
+        y = self.Bianchi(z)
+        m = 10**self.log10mg
+        
+        if isinstance(y, float) or isinstance(y, int):
+            if y<0:
+                return 0.
+            else:
+                CC_dyn = m**2 * np. sin(self.t)**2 * (b0*np.ones_like(y) + 3*b1*y + 3*b2*y**2 + b3*y**3)/3.
+                hubble_squared = self.H0**2 * (self.Omegam * (1+z)**3 )#+ Omegak * (1+z)**2 + Omegac) 
+                
+                return np.sqrt(hubble_squared + CC_dyn*eV)
+            
+        if np.any(y<0):
+            return np.zeros_like(z)
+        else:
+            CC_dyn = m**2 * np. sin(self.t)**2 * (b0*np.ones_like(y) + 3*b1*y + 3*b2*y**2 + b3*y**3)/3.
+            hubble_squared = self.H0**2 * (self.Omegam * (1+z)**3 )#+ Omegak * (1+z)**2 + Omegac) 
+
+            return np.sqrt(hubble_squared + CC_dyn.T*eV)
+        
+
 class Supernova_data:
     """Objects of this class represent SN data sets. Can be used to calculate the standardized distance modulus for given nuissance parameters (a, b, MB, delta_Mhost). Data must have shape (N,5)."""
     
