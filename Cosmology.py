@@ -83,10 +83,10 @@ class cosmology:
   
         if dataObject.name == 'Quasars' or dataObject.name == 'SN':
             data = dataObject.distance_modulus()
-            Cov = dataObject.delta_distance_modulus()
+            Cov = dataObject.cov_distance_modulus()
         elif dataObject.name == 'BAO':
             data = dataObject.distance_modulus(self)
-            Cov = dataObject.delta_distance_modulus(self)
+            Cov = dataObject.cov_distance_modulus(self)
         else:
             raise ValueError('Data type needs to be associated with input (e.g. BAO, quasars, ...)')
             
@@ -174,7 +174,7 @@ class Supernova_data:
         
         return np.array([z, DM_SN]).T
     
-    def delta_distance_modulus(self):
+    def cov_distance_modulus(self):
         a, b, MB = self.param[:3]
         z = self.data.T[0]
         del_mb, del_x1, del_C = self.err.T
@@ -182,6 +182,12 @@ class Supernova_data:
         covSN =  del_mb**2 + a**2 * del_x1**2 + b**2 * del_C**2
         
         return mu_cov(a,b) + np.diag(covSN) 
+    
+    def delta_distance_modulus(self):
+        # this function returns the error, that is the sqrt of the diagonal entries of cov
+
+
+        return np.sqrt(np.diagonal(self.cov_distance_modulus()))
     
     
 class Quasar_data:
@@ -229,7 +235,7 @@ class Quasar_data:
         
         return np.array([z, DM_Q]).T
         
-    def delta_distance_modulus(self):
+    def cov_distance_modulus(self):
         s = self.param[1]
         z = self.data.T[0]
         err_logFX = self.err
@@ -238,6 +244,12 @@ class Quasar_data:
         covQ = (5/2/(1-self.gamma) * err_logFX)**2 + s**2
         
         return covQ
+    
+    def delta_distance_modulus(self):
+        # this function returns the error, that is the sqrt of the diagonal entries of cov
+
+
+        return np.sqrt(self.cov_distance_modulus())
 
 
 class BAO_data:
@@ -257,9 +269,7 @@ class BAO_data:
             self.dataType = dataType
             self.name = "BAO"
             
-            # take average of errors if not symmetrical
-            if self.err.shape[1] == 2:
-                self.err = (self.err[:, 0]+self.err[:, 1])/2.
+
             
     def get_data(self):
         return self.data
@@ -319,14 +329,19 @@ class BAO_data:
                 
             elif dtype[line]=='rd/DV':
                 lumiDist =  (1 + z[line]) * ( (rd/meas[line])**3 * cosmo.H(z[line])/self.cLight/z[line] )**(1/2)
-                DMpairs[line] =  ( z[line], 5*(np.log10(lumiDist) + 5) )             
+                DMpairs[line] =  ( z[line], 5*(np.log10(lumiDist) + 5) )
+            
+            elif dtype[line]=='A':
+                lumiDist =  (1 + z[line]) * (meas[line]/100)**(3/2) * (cosmo.H(z[line]))**(1/2) *self.cLight*z[line]/(cosmo.Omegam*(cosmo.H0/100)**2)**(3/4)
+                DMpairs[line] =  ( z[line], 5*(np.log10(lumiDist) + 5) )
                 
             else:
                 raise ValueError('input data doesn\'t have a recognised format')
 
         return DMpairs
         
-    def delta_distance_modulus(self,cosmo):
+    def cov_distance_modulus(self,cosmo):
+        # this function returns the covariance matrix.
 
         z, meas = self.data.T
         dtype = self.dataType
@@ -336,21 +351,26 @@ class BAO_data:
         
         rd = self.com_sound_horizon(z_d,cosmo) # sound horizon for given cosmology
         
-        covDM = np.empty([len(dtype), 1])
+        covDM = np.zeros([len(self.err), len(self.err)])
                 
-        for line in range(0,len(dtype)): 
-            if dtype[line]=='DM*rd_fid/rd' or dtype[line]=='DA*rd_fid/rd':
-                # calculate com dist and DM:
-                covDM[line] =  (5*self.err[line]/meas[line])**2
+        for i in range(0,len(self.err)):
+            for j in range(0,len(self.err)):
+                if dtype[i]==dtype[j]=='DM*rd_fid/rd' or dtype[i]==dtype[j]=='DA*rd_fid/rd':
+                    # calculate cov:
+                    covDM[i,j] =  (5/meas[i]) * self.err[i,j]**2 * (5/meas[j])
                 
-            elif dtype[line]=='rd/DV' or dtype[line]=='DV*rd_fid/rd':
-                covDM[line] =  (5*3/2*self.err[line]/meas[line])**2
-                
-            else:
-                raise ValueError('input data doesn\'t have a recognised format')
+                elif dtype[i]==dtype[j]=='rd/DV' or dtype[i]==dtype[j]=='DV*rd_fid/rd' or dtype[i]==dtype[j]=='A':
+                    covDM[i,j] =  (5*3/2/meas[i]) * self.err[i,j]**2 * (5*3/2/meas[j])
+            
         
         #return sigmaDM.T[0]
-        return np.diag(covDM.T[0])   # BAO errors are now also arrays due to the correlations in WiggleZ data
+        return covDM   # BAO errors are now also arrays due to the correlations in WiggleZ data
+    
+    def delta_distance_modulus(self,cosmo):
+        # this function returns the error, that is the sqrt of the diagonal entries of cov
+
+
+        return np.sqrt(np.diagonal(self.cov_distance_modulus(cosmo)))
 
 
 
