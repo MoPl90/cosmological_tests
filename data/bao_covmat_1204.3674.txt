@@ -1,0 +1,4 @@
+#survey         #redshift    #quantity       #covmat
+WiggleZ         0.44         A               1.156e-3  0.211e-3  0.000e-3
+WiggleZ         0.6          A               0.211e-3  0.400e-3  0.189e-3
+WiggleZ         0.73         A               0.000e-3  0.189e-3  0.441e-3

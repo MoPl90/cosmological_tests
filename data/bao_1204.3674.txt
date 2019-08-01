@@ -1,0 +1,4 @@
+#survey         #redshift    #quantity       #measurement
+WiggleZ         0.44         A               0.474
+WiggleZ         0.6          A               0.442
+WiggleZ         0.73         A               0.424
