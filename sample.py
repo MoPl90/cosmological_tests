@@ -43,18 +43,26 @@ Qdata = Quasar_data(dataQ, errQ, np.array([beta_prime, s]))
 
 
 #BAO data
+# load all data points except for WiggleZ
 dataBAO = np.loadtxt('data/bao_1806-06781.txt', usecols=(1,3))
-errBAO = np.loadtxt('data/bao_1806-06781.txt', usecols=(4,5))
+# add WiggleZ
+dataBAO = np.append(dataBAO, np.loadtxt('data/bao_1204.3674.txt', usecols=(1,3)), axis=0)
+
+# the error for BAO is a cov mat, due to the addition of the WiggleZ data.
+errBAO  = np.pad(np.diag(np.loadtxt('data/bao_1806-06781.txt', usecols=4)), [(0, 3), (0, 3)], mode='constant', constant_values=0)
+# now add the WiggleZ cov mat. Note that this is the sqrt, as all the other errors are given in this format, too.
+errBAO += np.pad(np.sqrt(np.loadtxt('data/bao_covmat_1204.3674.txt', usecols=(3,4,5))), [(len(errBAO)-3, 0), (len(errBAO)-3, 0)], mode='constant', constant_values=0)
+
 typeBAO = np.genfromtxt('data/bao_1806-06781.txt',dtype=str, usecols=2)
+typeBAO = np.append(typeBAO, np.genfromtxt('data/bao_1204.3674.txt',dtype=str, usecols=2), axis=0)
 
 BAOdata = BAO_data(dataBAO, errBAO, np.array([omega_baryon_preset, omega_gamma_preset]), typeBAO)
-LCDM = cosmology(Omega_m_preset, Omega_c_preset, omegar = Omega_r_preset, w=-1, Hzero=70)
-
-#calculate sound horizon r_s in MPc in comoving coords
-BAOdata.com_sound_horizon(z_d,LCDM)
 
 
 model = sys.argv[-1]
+
+if not model in ['LCDM', 'wLCDM', 'confromal', 'bigravity']:
+    raise(NameError('Specify a cosmological model as the last argument.'))
 
 ranges_min = np.array([0, 0, -5, -10, -30, -.5, 0, 0]) #Omegam, Omegac, Omegab, H0, alpha, beta, MB, delda_M, beta_prime, s
 ranges_max = np.array([1, 1.5, 5, 10, -10, .5, 10, 3]) #Omegam, Omegac, Omegab, H0, alpha, beta, MB, delda_M, beta_prime, s
