@@ -53,7 +53,7 @@ class cosmology:
         dH = self.cLight / self.H0 # Hubble length in Mpc
         
         #first integrate to obtain the comoving distance
-        if isinstance(z, float):
+        if isinstance(z, (float, int)):
             dC = self.cLight * integrate.quad(lambda x: 1/self.H(x), 0, z)[0]
         elif isinstance(z, (list, np.ndarray)):
             z_int = np.append([0], z)
@@ -592,9 +592,9 @@ class likelihood:
                 Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
                 self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset, Hzero = H0)
             elif self.model == 'wLCDM':
-                Omegam, Omegac, Omegab, w, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+                Omegam, Omegac, Omegab, H0, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
                 self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset, w = w, Hzero = H0)
-            if self.model == 'conformal':
+            elif self.model == 'conformal':
                 gamma0, kappa, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
                 Omegak =  (gamma0)**2 / 2 *cosmology.cLight**2/(H0/1E-3)**2#Gpc^-1
                 Omegac = 1-Omegak
@@ -611,7 +611,7 @@ class likelihood:
             elif self.model == 'wLCDM':
                 Omegam, Omegac, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
                 self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset, w = w)
-            if self.model == 'conformal':
+            elif self.model == 'conformal':
                 gamma0, kappa, a, b, MB, delta_Mhost, beta_prime, s = self.params
                 Omegak =  (gamma0)**2 / 2 *cosmology.cLight**2/(70./1E-3)**2#Gpc^-1
                 Omegac = 1-Omegak
