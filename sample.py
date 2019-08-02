@@ -86,10 +86,10 @@ if 'BAO' in sys.argv:
 if 'RC' in sys.argv:
     data_sets.append(RCdata)
      
-Likelihood = lambda theta, data: likelihood(theta, data, min_ranges, max_ranges, model = model)
+Likelihood = lambda theta, data: likelihood(theta, data, ranges_min, ranges_max, model = model)
 
 
-ndim, nwalkers, nsteps = len(min_ranges), 500, 1000
+ndim, nwalkers, nsteps = len(ranges_min), 500, 1000
 pos0 = np.random.uniform(ranges_min, ranges_max,(nwalkers,len(ranges_max)))
 
 pool= MPIPool()
