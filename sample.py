@@ -41,35 +41,39 @@ beta_prime, s = 7.4, 1.5
 
 Qdata = Quasar_data(dataQ, errQ, np.array([beta_prime, s]))
 
+# ## RC data
+gamma00, kappa0 = 0.0093, 95
+RCdata = RC_data([gamma00, kappa0])
+
 
 #BAO data
 # load all data points except for WiggleZ
-dataBAO = np.loadtxt('data/bao_1806-06781.txt', usecols=(1,3))
+dataBAO = np.loadtxt('data/BOSS.txt', usecols=(1,3))
 # add WiggleZ
-dataBAO = np.append(dataBAO, np.loadtxt('data/bao_1204.3674.txt', usecols=(1,3)), axis=0)
+dataBAO = np.append(dataBAO, np.loadtxt('data/WiggleZ.txt', usecols=(1,3)), axis=0)
 
 # the error for BAO is a cov mat, due to the addition of the WiggleZ data.
-errBAO  = np.pad(np.diag(np.loadtxt('data/bao_1806-06781.txt', usecols=4)), [(0, 3), (0, 3)], mode='constant', constant_values=0)
+errBAO  = np.pad(np.diag(np.loadtxt('data/BOSS.txt', usecols=4)), [(0, 3), (0, 3)], mode='constant', constant_values=0)
 # now add the WiggleZ cov mat. Note that this is the sqrt, as all the other errors are given in this format, too.
-errBAO += np.pad(np.sqrt(np.loadtxt('data/bao_covmat_1204.3674.txt', usecols=(3,4,5))), [(len(errBAO)-3, 0), (len(errBAO)-3, 0)], mode='constant', constant_values=0)
+errBAO += np.pad(np.sqrt(np.loadtxt('data/WiggleZ_cov.txt', usecols=(3,4,5))), [(len(errBAO)-3, 0), (len(errBAO)-3, 0)], mode='constant', constant_values=0)
 
-typeBAO = np.genfromtxt('data/bao_1806-06781.txt',dtype=str, usecols=2)
-typeBAO = np.append(typeBAO, np.genfromtxt('data/bao_1204.3674.txt',dtype=str, usecols=2), axis=0)
+typeBAO = np.genfromtxt('data/BOSS.txt',dtype=str, usecols=2)
+typeBAO = np.append(typeBAO, np.genfromtxt('data/WiggleZ.txt',dtype=str, usecols=2), axis=0)
 
 BAOdata = BAO_data(dataBAO, errBAO, np.array([omega_baryon_preset, omega_gamma_preset]), typeBAO)
 
 
 model = sys.argv[-1]
 
-if not model in ['LCDM', 'wLCDM', 'confromal', 'bigravity']:
+if not model in ['LCDM', 'wLCDM', 'conformal', 'bigravity']:
     raise(NameError('Specify a cosmological model as the last argument.'))
 
 ranges_min = np.array([0, 0, -5, -10, -30, -.5, 0, 0]) #Omegam, Omegac, Omegab, H0, alpha, beta, MB, delda_M, beta_prime, s
 ranges_max = np.array([1, 1.5, 5, 10, -10, .5, 10, 3]) #Omegam, Omegac, Omegab, H0, alpha, beta, MB, delda_M, beta_prime, s
 
-if not 'BAO' in sys.argv: #delte Omegab and H0 prior
-    ranges_min = np.delete(ranges_min, [2,3])
-    ranges_max = np.delete(ranges_max, [2,3])
+#if not 'BAO' in sys.argv: #delte Omegab and H0 prior
+#    ranges_min = np.delete(ranges_min, [2,3])
+#    ranges_max = np.delete(ranges_max, [2,3])
 
 if model == 'wLCDM': #insert w prior
     ranges_min = np.insert(ranges_min, -6, -2.5)
@@ -77,11 +81,11 @@ if model == 'wLCDM': #insert w prior
 
 elif model == 'conformal': #replace Omegam, Omegac -> gamma0, kappa priors
     ranges_min[:2] = 0, 50
-    ranges_max[:2] = .001, 300
+    ranges_max[:2] = 1., 300
     
 elif model == 'bigravity': #remove Omegac prior and add Bigravity model priors
-    ranges_min = np.append([-33., 0, .1, .1, .1, .1], np.delete(ranges_min, 1))
-    ranges_max = np.append([-28., np.pi/2. , 30., 30., 30., 30.], np.delete( ranges_max, 1))
+    ranges_min = np.append([-33., 0], np.delete(ranges_min, 1))
+    ranges_max = np.append([-28., np.pi/2.], np.delete( ranges_max, 1))
     
 
 data_sets = []
@@ -94,10 +98,11 @@ if 'BAO' in sys.argv:
 if 'RC' in sys.argv:
     data_sets.append(RCdata)
      
-Likelihood = lambda theta, data: likelihood(theta, data, ranges_min, ranges_max, model = model)
+def Likelihood(theta): 
+    l = likelihood(theta, data_sets, ranges_min, ranges_max, model = model)
+    return l.logprobability_flat_prior()
 
-
-ndim, nwalkers, nsteps = len(ranges_min), 500, 1000
+ndim, nwalkers, nsteps = len(ranges_min), 512, 1000
 pos0 = np.random.uniform(ranges_min, ranges_max,(nwalkers,len(ranges_max)))
 
 pool= MPIPool()
@@ -114,7 +119,7 @@ for data_sample in sys.argv[1:-1]:
 
 h5chain = HDFBackend(name + str(nwalkers) + 'x' + str(nsteps) + '.h5')
 
-sampler = EnsembleSampler(nwalkers, ndim, Likelihood, args=data_sets, pool=pool, backend=h5chain)
+sampler = EnsembleSampler(nwalkers, ndim, Likelihood, pool=pool, backend=h5chain)
 
 sampler.run_mcmc(pos0, nsteps)
 

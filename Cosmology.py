@@ -20,21 +20,26 @@ class cosmology:
         self.Omegam = omegam #non-relativistic matter energy density
         self.Omegar = omegar #relativistic matter energy density
         self.Omegac = omegac #dark energy density
-        self.Omegak = 1 - omegam - omegac #curvature energy density
+        self.Omegak = 1 - omegam - omegac - omegar #curvature energy density
         self.eos = w #the dark energy equation of state
         self.H0 = Hzero #the present day Hubble rate in km/s/Mps
         
-    def set_energy_densities(self, omegam, omegac):
+    def set_energy_densities(self, omegam, omegac, omegar=None):
         """Change the initialised values of Omega_i."""
         self.Omegam = omegam #non-relativistic matter energy density
-        self.Omegar = omegar #relativistic matter energy density
+        if omegar is None:
+            omegar = self.Omegar
+        else:
+            self.Omegar = omegar #relativistic matter energy density
         self.Omegac = omegac #dark energy density
-        self.Omegak = 1 - omegam - omegac #curvature energy density
+        self.Omegak = 1 - omegam - omegac  #curvature energy density
         
-    def get_energy_densities(self, omegam, omegar, omegac):
+        return self
+        
+    def get_energy_densities(self):
         """Return the current values of Omega_i as a numpy array."""
         
-        return np.array([self.Omegam, self.Omegar, self.Omegac, self.Omegak])
+        return np.array([self.Omegam, self.Omegac, self.Omegar, self.Omegak])
 
     def get_eos(self, omegam, omegar, omegac):
         """Return the equation of state for this cosmology. This parameter can not be changed once initialized!"""
@@ -106,7 +111,7 @@ class cosmology:
             raise ValueError('Data has wrong format.')
             
 
- 
+         
         #if dataObject.name == 'Quasars' or dataObject.name == 'SN':
             #data = dataObject.distance_modulus()
             #Cov = dataObject.delta_distance_modulus()
@@ -226,7 +231,7 @@ class bigravity_cosmology(cosmology):
                 CC_dyn = m**2 * np. sin(self.t)**2 * (b0*np.ones_like(y) + 3*b1*y + 3*b2*y**2 + b3*y**3)/3.
                 hubble_squared = self.H0**2 * (self.Omegam * (1+z)**3 )#+ Omegak * (1+z)**2 + Omegac) 
                 
-                return np.sqrt(hubble_squared + CC_dyn*eV)
+                return np.sqrt(hubble_squared + CC_dyn*eV**2)
             
         if np.any(y<0):
             return np.zeros_like(z)
@@ -234,7 +239,7 @@ class bigravity_cosmology(cosmology):
             CC_dyn = m**2 * np. sin(self.t)**2 * (b0*np.ones_like(y) + 3*b1*y + 3*b2*y**2 + b3*y**3)/3.
             hubble_squared = self.H0**2 * (self.Omegam * (1+z)**3 )#+ Omegak * (1+z)**2 + Omegac) 
 
-            return np.sqrt(hubble_squared + CC_dyn.T*eV)
+            return np.sqrt(hubble_squared + CC_dyn.T*eV**2)
         
 
 class Supernova_data:
@@ -264,6 +269,8 @@ class Supernova_data:
         if len(new_param) != 4:
             raise ValueError('Parameters have wrong format: param = (a, b, MB, delta_Mhost)')
         self.param = new_param
+        
+        return self
         
     def distance_modulus(self):
         a, b, MB, delta_Mhost = self.param
@@ -322,9 +329,12 @@ class Quasar_data:
             raise ValueError('Parameters have wrong format: param = (beta_prime, s)')
         self.param = new_param
         
+        return self
+    
     def set_gamma(self, new_gamma):
         self.gamma = new_gamma
 
+        return self
         
     def distance_modulus(self):
         beta_prime = self.param[0]
@@ -381,8 +391,10 @@ class BAO_data:
     
     def set_param(self, new_param):
         if len(new_param) != 2: 
-            raise ValueError('Parameters have wrong format: param = (beta_prime, s)')
+            raise ValueError('Parameters have wrong format: param = (omega_)')
         self.param = new_param
+        
+        return self
         
     def sound_speed(self,z):
         omega_baryon, omega_gamma = self.param
@@ -418,12 +430,21 @@ class BAO_data:
                 lumiDist = (1 + z[line]) * meas[line]*rd/rd_fid
                 DMpairs[line] = ( z[line], 5*(np.log10(lumiDist) + 5) )
             
+            elif dtype[line]=='DM/rd':
+                # calculate lumi dist and DM
+                lumiDist = (1 + z[line]) * meas[line]*rd
+                DMpairs[line] = ( z[line], 5*(np.log10(lumiDist) + 5) )
+
             elif dtype[line]=='DA*rd_fid/rd':
                 lumiDist = (1 + z[line])**2 * meas[line]*rd/rd_fid
                 DMpairs[line] = ( z[line], 5*(np.log10(lumiDist) + 5) )
             
             elif dtype[line]=='DV*rd_fid/rd':
                 lumiDist =  (1 + z[line]) * ( (meas[line]*rd/rd_fid)**3 * cosmo.H(z[line])/self.cLight/z[line] )**(1/2)
+                DMpairs[line] =  ( z[line], 5*(np.log10(lumiDist) + 5) )    
+            
+            elif dtype[line]=='DV*rd/rd_fid':
+                lumiDist =  (1 + z[line]) * ( (meas[line]*rd_fid/rd)**3 * cosmo.H(z[line])/self.cLight/z[line] )**(1/2)
                 DMpairs[line] =  ( z[line], 5*(np.log10(lumiDist) + 5) )    
                 
             elif dtype[line]=='rd/DV':
@@ -454,7 +475,7 @@ class BAO_data:
                 
         for i in range(0,len(self.err)):
             for j in range(0,len(self.err)):
-                if dtype[i]==dtype[j]=='DM*rd_fid/rd' or dtype[i]==dtype[j]=='DA*rd_fid/rd':
+                if dtype[i]==dtype[j]=='DM*rd_fid/rd' or dtype[i]==dtype[j]=='DM/rd' or dtype[i]==dtype[j]=='DA*rd_fid/rd':
                     # calculate cov:
                     covDM[i,j] =  (5/meas[i]) * self.err[i,j]**2 * (5/meas[j])
                 
@@ -523,6 +544,8 @@ class RC_data:
 
     def set_param(self, new_params):
         self.gamma0, self.kappa = new_params 
+        
+        return self
 
     def vCG_square(self, r): # units of 1E9 Msol
         """Compute the *non-local* Conformal Gravity contribution to the rotational velocity."""
@@ -587,49 +610,50 @@ class likelihood:
             elif sample.name == 'RC' and self.model == 'conformal':
                 self.data_sets['RC'] = sample
                 
-        if 'BAO' in self.data_sets.keys():
-            if self.model == 'LCDM':
-                Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-                self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset, Hzero = H0)
-            elif self.model == 'wLCDM':
-                Omegam, Omegac, Omegab, H0, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
-                self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset, w = w, Hzero = H0)
-            elif self.model == 'conformal':
-                gamma0, kappa, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-                Omegak =  (gamma0)**2 / 2 *cosmology.cLight**2/(H0/1E-3)**2#Gpc^-1
-                Omegac = 1-Omegak
-                self.cosmo = cosmology(0., Omegac, omegar = self.omega_gamma_preset, Hzero = H0)
-            elif self.model == 'bigravity':
-                log10m, t, b0, b1, b2, b3, Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-                self.cosmo = bigravity_cosmology(log10m, t, b0, b1, b2, b3, Omegam, omegar = self.omega_gamma_preset, Hzero = H0)
-            else: 
-                raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity]'))
-        else:
-            if self.model == 'LCDM':
-                Omegam, Omegac, a, b, MB, delta_Mhost, beta_prime, s = self.params
-                self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset)
-            elif self.model == 'wLCDM':
-                Omegam, Omegac, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
-                self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset, w = w)
-            elif self.model == 'conformal':
-                gamma0, kappa, a, b, MB, delta_Mhost, beta_prime, s = self.params
-                Omegak =  (gamma0)**2 / 2 *cosmology.cLight**2/(70./1E-3)**2#Gpc^-1
-                Omegac = 1-Omegak
-                self.cosmo = cosmology(0., Omegac, omegar = self.omega_gamma_preset)
-            elif self.model == 'bigravity':
-                log10m, t, b0, b1, b2, b3, Omegam, a, b, MB, delta_Mhost, beta_prime, s = self.params
-                self.cosmo = bigravity_cosmology(log10m, t, b0, b1, b2, b3, Omegam)
-            else: 
-                raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity]'))
+#        if 'BAO' in self.data_sets.keys():
+#            if self.model == 'LCDM':
+#                Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+#                self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset, Hzero = H0)
+#            elif self.model == 'wLCDM':
+#                Omegam, Omegac, Omegab, H0, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
+#                self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset, w = w, Hzero = H0)
+#            elif self.model == 'conformal':
+#                gamma0, kappa, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+#                Omegak =  (gamma0)**2 / 2 *cosmology.cLight**2/(H0/1E-3)**2#Gpc^-1
+#                Omegac = 1-Omegak
+#                self.cosmo = cosmology(0., Omegac, omegar = self.omega_gamma_preset, Hzero = H0)
+#            elif self.model == 'bigravity':
+#                log10m, t, b0, b1, b2, b3, Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+#               self.cosmo = bigravity_cosmology(log10m, t, b0, b1, b2, b3, Omegam, omegar = self.omega_gamma_preset, Hzero = H0)
+#            else: 
+#                raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity]'))
+#        else:
+        if self.model == 'LCDM':
+            Omegam, Omegac, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset)
+        elif self.model == 'wLCDM':
+            Omegam, Omegac, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset, w = w)
+        elif self.model == 'conformal':
+            gamma0, kappa, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            Omegak =  (gamma0)**2 / 2 *cosmology.cLight**2/(70./1E-3)**2#Gpc^-1
+            Omegac = 1-Omegak
+            self.cosmo = cosmology(0., Omegac, omegar = self.omega_gamma_preset)
+        elif self.model == 'bigravity':
+            log10m, t,  Omegam, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = bigravity_cosmology(log10m, t, 1, 1, -1, 1, Omegam, omegar = self.omega_gamma_preset)
+        else: 
+            raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity]'))
 
-            Omegab = self.omega_baryon_preset
-                
+        Omegab = self.omega_baryon_preset
+        Omegar = self.omega_gamma_preset
+
         if 'SN' in self.data_sets.keys():
             self.data_sets['SN'].set_param([a, b, MB, delta_Mhost])
         if 'Quasars' in self.data_sets.keys():
             self.data_sets['Quasars'].set_param([beta_prime, s])
         if 'BAO' in self.data_sets.keys():
-            self.data_sets['BAO'].set_param(np.array([Omegab, self.omega_gamma_preset]))
+            self.data_sets['BAO'].set_param(np.array([Omegab, Omegar]))
         if 'RC' in self.data_sets.keys() and self.model == 'conformal':
             self.data_sets['RC'].set_param([gamma0, kappa])
             self.data_sets['RC'].fit()
@@ -652,9 +676,8 @@ class likelihood:
                 return -np.inf
             
         return log_prob
-    
-    
-    
+
+
     def lnprior_flat(self):
         """Compute a flat prior for the posterior distribution."""
         
@@ -670,10 +693,31 @@ class likelihood:
             if self.params[i] > self.ranges_max[i]:
                 return -np.inf
             
-        return 0
+        return 0    
+    
+    def lnprior_gauss(self):
+        """Compute a prior which is gaussian in Omegab, H0"""
+        if self.model == 'bigravity':
+            Omegab, H0 = self.params[7:9]
+        else:
+            Omegab, H0 = self.params[2:4]
+        h = H0 / 100
+
+        gauss = - (Omegab * h**2 - 0.02218)**2 / (2 * 0.00130**2) #CMB prior for Omegab (more conservative than local measurements)
+        gauss += - (H0 - 73.)**2 / (2 * 1.7**2) #1604.01424
+
+        return self.lnprior_flat() + gauss    
+
         
     def logprobability_flat_prior(self):
         lp = self.lnprior_flat()
+        if not np.isfinite(lp):
+            return -np.inf
+        return lp + self.lnlike()
+
+
+    def logprobability_gauss_prior(self):
+        lp = self.lnprior_gauss()
         if not np.isfinite(lp):
             return -np.inf
         return lp + self.lnlike()
