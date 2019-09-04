@@ -11,3 +11,4 @@ SDSS_DR11       0.32         DV*rd_fid/rd    1264         25         # from 1312
 SDSS_DR11       0.57         DV*rd_fid/rd    2056         20         # from 1312.4877
 SDSS_DR11       0.57         DA*rd_fid/rd    1421         20         # from 1312.4877
 SDSS_DR7        0.35         DV*rd_fid/rd    1312         25         # from 1202.0090
+ 
