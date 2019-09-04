@@ -1,12 +1,13 @@
-#survey         #redshift    #quantity       #measurement #error  
-6dFGS            0.106        rd/DV           0.336        0.015      # 1806.06781
-BOSS_DR12      	 0.38         DV*rd_fid/rd    1485         24   # from 1607.03149
-BOSS_DR12        0.51         DV*rd_fid/rd    1916         32   # from 1607.03149
-BOSS_DR12        0.61         DV*rd_fid/rd    2150         42   # from 1607.03149
-eBOSS_DR14_QSO   0.98         DA*rd_fid/rd    1586.18      284.93 # from 1801.03043
-eBOSS_DR14_QSO   1.23         DA*rd_fid/rd    1769.08      159.67 # from 1801.03043
-eBOSS_DR14_QSO   1.53         DA*rd_fid/rd    1768.77      96.59 # from 1801.03043
-eBOSS_DR14_QSO   1.94         DA*rd_fid/rd    1807.98      146.46 # from 1801.03043
-eBOSS_DR14_Lyα 	 2.34         DM/rd			  37.41		   1.86 # from 1904.03400
-BOSS_DR12_Lyα   2.33         DM*rd_fid/rd    5586.08      310.338
-Boss_DR12_QSOxLyα    2.40         DM*rd_fid/rd    5275.75      251.226
+#survey         #redshift   #quantity      	#measurement 	#error  
+6dFGS           0.106       DV/rd          	2.975        	0.133      	# 1806.06781
+SDSS_MGS        0.15        DV/rd    		4.473        	0.159      	# 1409.3242
+BOSS_DR12      	0.38       	DV/rd    		9.97        	0.12  		# 1607.03149
+BOSS_DR12       0.51        DV/rd    		12.67         	0.12   		# 1607.03149
+BOSS_DR12       0.61        DV/rd    		14.49         	0.14   		# 1607.03149
+BOSS_DR14       0.71        DV/rd    		15.92         	0.42   		# 1712.08064
+eBOSS_QSO		0.98        DV/rd    		19.85      		2.22 		# 1801.03043
+eBOSS_QSO  		1.23        DV/rd    		23.83	      	1.3 		# 1801.03043
+eBOSS_QSO  		1.53        DV/rd    		26.76	      	0.96 		# 1801.03043
+eBOSS_QSO  		1.94        DV/rd    		30.96    	  	1.63 		# 1801.03043
+eBOSS_Lyα 		2.34        DM/rd			37.41		    1.86 		# 1904.03400
+eBoss_QSOxLyα   2.35        DM/rd    		36.3      		1.8 		# 1904.03430

@@ -15,24 +15,33 @@ class cosmology:
     cLight = 3E5 # speed of light in km/s
     #H0 = 70. #the present day Hubble rate in km/s/Mps
     
-    def __init__(self, omegam, omegac, omegar=0, w=-1, Hzero=70):
+    def __init__(self, omegam, omegac, rs = 147.27, omegar=None, w=-1, Hzero=70):
         """Initialise a cosmological model"""
+        self.r_sound = rs
+        self.Omegac = omegac #dark energy density
         self.Omegam = omegam #non-relativistic matter energy density
         self.Omegar = omegar #relativistic matter energy density
-        self.Omegac = omegac #dark energy density
-        self.Omegak = 1 - omegam - omegac - omegar #curvature energy density
+        if not omegar is None:
+            self.Omegak = 1 - self.Omegam - self.Omegac - self.Omegar #curvature energy density
+        else:
+            self.Omegak = 1 - self.Omegam - self.Omegac #curvature energy density
+            
         self.eos = w #the dark energy equation of state
         self.H0 = Hzero #the present day Hubble rate in km/s/Mps
         
     def set_energy_densities(self, omegam, omegac, omegar=None):
         """Change the initialised values of Omega_i."""
         self.Omegam = omegam #non-relativistic matter energy density
-        if omegar is None:
-            omegar = self.Omegar
-        else:
+        if not omegar is None:
             self.Omegar = omegar #relativistic matter energy density
         self.Omegac = omegac #dark energy density
         self.Omegak = 1 - omegam - omegac  #curvature energy density
+        
+        return self
+    
+    def set_sound_horizon(self, rs):
+        """Set a new value for the sound horizon."""
+        self.r_sound = rs
         
         return self
         
@@ -48,7 +57,10 @@ class cosmology:
     
     def H(self, z):
         """Compute the Hubble rate H(z) for a given redshift z."""
-        return self.H0 * np.sqrt(self.Omegar * (1+z)**4 + self.Omegam * (1+z)**3 + self.Omegak * (1+z)**2 + self.Omegac * (1+z)**(3*(1 + self.eos)))
+        if not self.Omegar is None:
+            return self.H0 * np.sqrt(self.Omegar * (1+z)**4 + self.Omegam * (1+z)**3 + self.Omegak * (1+z)**2 + self.Omegac * (1+z)**(3*(1 + self.eos)))
+        else:
+            return self.H0 * np.sqrt(self.Omegam * (1+z)**3 + self.Omegak * (1+z)**2 + self.Omegac * (1+z)**(3*(1 + self.eos)))
         
 
     def luminosity_distance(self, z, eps = 1E-3):
@@ -146,8 +158,8 @@ class cosmology:
 class bigravity_cosmology(cosmology):
     """This class inherits from the cosmology base class and implements a bigravity cosmology."""
 
-    def __init__(self, log10m, theta, b0, b1, b2, b3, omegam, omegar=0, Hzero=70.):
-        super().__init__(omegam, 0, omegar, w=-1, Hzero=Hzero)
+    def __init__(self, log10m, theta, b0, b1, b2, b3, omegam, rs=147.27, omegar=None, Hzero=70.):
+        super().__init__(omegam, 0, rs, omegar, w=-1, Hzero=Hzero)
         self.log10mg = log10m
         self.t = theta
         self.betas = np.array([b0, b1, b2, b3])
@@ -404,8 +416,11 @@ class BAO_data:
         return soundspeed
     
     def com_sound_horizon(self,z_d,cosmo):
-            
-        comsoundhorizon = integrate.quad(lambda z:self.sound_speed(z)/(cosmo.H(z)),z_d,np.inf)[0]
+        
+        if not cosmo.Omegar is None:
+            comsoundhorizon = integrate.quad(lambda z:self.sound_speed(z)/(cosmo.H(z)),z_d,np.inf)[0]
+        else:
+            comsoundhorizon = cosmo.r_sound
         
         return comsoundhorizon
  
@@ -446,6 +461,10 @@ class BAO_data:
             elif dtype[line]=='DV*rd/rd_fid':
                 lumiDist =  (1 + z[line]) * ( (meas[line]*rd_fid/rd)**3 * cosmo.H(z[line])/self.cLight/z[line] )**(1/2)
                 DMpairs[line] =  ( z[line], 5*(np.log10(lumiDist) + 5) )    
+            
+            elif dtype[line]=='DV/rd':
+                lumiDist =  (1 + z[line]) * ( (rd*meas[line])**3 * cosmo.H(z[line])/self.cLight/z[line] )**(1/2)
+                DMpairs[line] =  ( z[line], 5*(np.log10(lumiDist) + 5) )
                 
             elif dtype[line]=='rd/DV':
                 lumiDist =  (1 + z[line]) * ( (rd/meas[line])**3 * cosmo.H(z[line])/self.cLight/z[line] )**(1/2)
@@ -479,7 +498,7 @@ class BAO_data:
                     # calculate cov:
                     covDM[i,j] =  (5/meas[i]) * self.err[i,j]**2 * (5/meas[j])
                 
-                elif dtype[i]==dtype[j]=='rd/DV' or dtype[i]==dtype[j]=='DV*rd_fid/rd' or dtype[i]==dtype[j]=='A':
+                elif dtype[i]==dtype[j]=='rd/DV' or dtype[i]==dtype[j]=='DV*rd_fid/rd' or dtype[i]==dtype[j]=='DV/rd' or dtype[i]==dtype[j]=='A':
                     covDM[i,j] =  (5*3/2/meas[i]) * self.err[i,j]**2 * (5*3/2/meas[j])
             
         

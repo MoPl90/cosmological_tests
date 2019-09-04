@@ -117,7 +117,7 @@ for data_sample in sys.argv[1:-1]:
 
 
 
-h5chain = HDFBackend(name + str(nwalkers) + 'x' + str(nsteps) + '.h5')
+h5chain = HDFBackend('chains/' + name + str(nwalkers) + 'x' + str(nsteps) + '.h5')
 
 sampler = EnsembleSampler(nwalkers, ndim, Likelihood, pool=pool, backend=h5chain)
 
