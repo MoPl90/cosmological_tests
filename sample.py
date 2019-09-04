@@ -68,12 +68,9 @@ model = sys.argv[-1]
 if not model in ['LCDM', 'wLCDM', 'conformal', 'bigravity']:
     raise(NameError('Specify a cosmological model as the last argument.'))
 
-ranges_min = np.array([0, 0, -5, -10, -30, -.5, 0, 0]) #Omegam, Omegac, Omegab, H0, alpha, beta, MB, delda_M, beta_prime, s
-ranges_max = np.array([1, 1.5, 5, 10, -10, .5, 10, 3]) #Omegam, Omegac, Omegab, H0, alpha, beta, MB, delda_M, beta_prime, s
+ranges_min = np.array([0, 0, 125, -5, -10, -30, -.5, 0, 0]) #Omegam, Omegac, rs, alpha, beta, MB, delda_M, beta_prime, s
+ranges_max = np.array([1, 1.5, 175, 5, 10, -10, .5, 10, 3]) #Omegam, Omegac, rs, alpha, beta, MB, delda_M, beta_prime, s
 
-#if not 'BAO' in sys.argv: #delte Omegab and H0 prior
-#    ranges_min = np.delete(ranges_min, [2,3])
-#    ranges_max = np.delete(ranges_max, [2,3])
 
 if model == 'wLCDM': #insert w prior
     ranges_min = np.insert(ranges_min, -6, -2.5)

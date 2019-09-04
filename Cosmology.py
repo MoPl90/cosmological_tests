@@ -629,38 +629,21 @@ class likelihood:
             elif sample.name == 'RC' and self.model == 'conformal':
                 self.data_sets['RC'] = sample
                 
-#        if 'BAO' in self.data_sets.keys():
-#            if self.model == 'LCDM':
-#                Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-#                self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset, Hzero = H0)
-#            elif self.model == 'wLCDM':
-#                Omegam, Omegac, Omegab, H0, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
-#                self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset, w = w, Hzero = H0)
-#            elif self.model == 'conformal':
-#                gamma0, kappa, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-#                Omegak =  (gamma0)**2 / 2 *cosmology.cLight**2/(H0/1E-3)**2#Gpc^-1
-#                Omegac = 1-Omegak
-#                self.cosmo = cosmology(0., Omegac, omegar = self.omega_gamma_preset, Hzero = H0)
-#            elif self.model == 'bigravity':
-#                log10m, t, b0, b1, b2, b3, Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-#               self.cosmo = bigravity_cosmology(log10m, t, b0, b1, b2, b3, Omegam, omegar = self.omega_gamma_preset, Hzero = H0)
-#            else: 
-#                raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity]'))
-#        else:
+
         if self.model == 'LCDM':
-            Omegam, Omegac, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset)
+            Omegam, Omegac, rs, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = cosmology(Omegam, Omegac, rs = rs)
         elif self.model == 'wLCDM':
-            Omegam, Omegac, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset, w = w)
+            Omegam, Omegac, rs, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = cosmology(Omegam, Omegac, rs = rs, w = w)
         elif self.model == 'conformal':
-            gamma0, kappa, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            gamma0, kappa, rs, a, b, MB, delta_Mhost, beta_prime, s = self.params
             Omegak =  (gamma0)**2 / 2 *cosmology.cLight**2/(70./1E-3)**2#Gpc^-1
             Omegac = 1-Omegak
-            self.cosmo = cosmology(0., Omegac, omegar = self.omega_gamma_preset)
+            self.cosmo = cosmology(0., Omegac, rs = rs)
         elif self.model == 'bigravity':
-            log10m, t,  Omegam, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = bigravity_cosmology(log10m, t, 1, 1, -1, 1, Omegam, omegar = self.omega_gamma_preset)
+            log10m, t,  Omegam, rs, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = bigravity_cosmology(log10m, t, 1, 1, -1, 1, Omegam, rs = rs)
         else: 
             raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity]'))
 
@@ -722,8 +705,7 @@ class likelihood:
             Omegab, H0 = self.params[2:4]
         h = H0 / 100
 
-        gauss = - (Omegab * h**2 - 0.02218)**2 / (2 * 0.00130**2) #CMB prior for Omegab (more conservative than local measurements)
-        gauss += - (H0 - 73.)**2 / (2 * 1.7**2) #1604.01424
+        gauss = - (rs - 147.27)**2 / (2 * 0.62)
 
         return self.lnprior_flat() + gauss    
 
