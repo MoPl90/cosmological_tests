@@ -97,15 +97,14 @@ class cosmology:
     def log_likelihood(self, dataObject):
         """Compute the Gaussian log-likelihood for given data tuples (z, DM(z)) and covariance."""
         
-        
-        
+       
   
         if dataObject.name == 'Quasars' or dataObject.name == 'SN':
             data = dataObject.distance_modulus()
-            Cov = dataObject.cov_distance_modulus()
+            Cov = dataObject.data_cov()
         elif dataObject.name == 'BAO':
-            data = dataObject.distance_modulus(self)
-            Cov = dataObject.cov_distance_modulus(self)
+            data = dataObject.distance_modulus(self) + dataObject.Hubble(self)
+            Cov = dataObject.data_cov(self)
         else:
             raise ValueError('Data type needs to be associated with input (e.g. BAO, quasars, ...)')
             
@@ -121,22 +120,14 @@ class cosmology:
             DM_data = data[:,1]
         else:
             raise ValueError('Data has wrong format.')
-            
-
-         
-        #if dataObject.name == 'Quasars' or dataObject.name == 'SN':
-            #data = dataObject.distance_modulus()
-            #Cov = dataObject.delta_distance_modulus()
-        #elif dataObject.name == 'BAO':
-            #data = dataObject.distance_modulus(self)
-            #Cov = 1
-       # else:
-            #raise ValueError('Data type needs to be associated with input (e.g. BAO, quasuars, ...)')
- 
+           
  
         # define the model DM:
-        
-        model = self.distance_modulus(z)
+        if dataObject.name == 'Quasars' or dataObject.name == 'SN':
+            model = self.distance_modulus(z)
+        elif dataObject.name == 'BAO':
+            model = np.array([self.distance_modulus(zi) if zi != 0. else 0. for zi in dataObject.distance_modulus(self).T[0]])
+            model += np.array([self.H(zi) if zi != 0. else 0. for zi in dataObject.Hubble(self).T[0]])
         
 
         
@@ -209,13 +200,13 @@ class bigravity_cosmology(cosmology):
         a1 = lambda z: (-3*b2 + b0*np.tan(self.t) + (0.140096333403*0.7**2*(1 + z)**3*self.Omegam*(1 + np.tan(self.t)))/10**(2*x))/b3/np.tan(self.t)+0j
         a2 = (3*b1)/b3 - 3*1/np.tan(self.t)+0j
         try:
-            x1 = a2/3. - (2**0.3333333333333333*(-12*a0 - a2**2))/(3.*(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333) +  (27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333/(3.*2**0.3333333333333333)
+            x1 = a2/3. - (2**(1/3.)*(-12*a0 - a2**2))/(3.*(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3.)) +  (27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3.)/(3.*2**(1/3.))
             if np.any(np.imag(x1) > 10**-6 * np.real(x1)):
                 raise RuntimeError
         except RuntimeError:
             return -10 * np.ones_like(z)
         
-        if np.all(x1 >= a2) and np.all(-a2 - x1 + (2*a1(z))/np.sqrt(-a2 + x1) >= 0.) and np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.) and np.all(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.) and np.all(0.16666666666666666*(-8*a2 - (2*2**0.3333333333333333*(12*a0 + a2**2))/(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333 - 2**0.6666666666666666*(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333 + (12*np.sqrt(6)*a1(0))/np.sqrt(-4*a2 + (2*2**0.3333333333333333*(12*a0 + a2**2))/(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333 + 2**0.6666666666666666*(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**0.3333333333333333))):
+        if np.all(x1 >= a2) and np.all(-a2 - x1 + (2*a1(z))/np.sqrt(-a2 + x1) >= 0.) and np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.) and np.all(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.) and np.all(1/6.*(-8*a2 - (2*2**(1/3.)*(12*a0 + a2**2))/(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3.) - 2**(2/3.)*(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3.) + (12*np.sqrt(6)*a1(0))/np.sqrt(-4*a2 + (2*2**(1/3.)*(12*a0 + a2**2))/(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3.) + 2**(2/3.)*(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3.)))):
             return np.real(-np.sqrt(-a2 + x1)/2. + np.sqrt(-a2 - x1 + (2*a1(z))/np.sqrt(-a2 + x1))/2.)
         else: 
             return -1 * np.ones_like(z)
@@ -232,7 +223,7 @@ class bigravity_cosmology(cosmology):
         Hubble rate H(z)
         """
         
-        b0, b1, b2, b3 = self.betas
+        b0, b1, b2, b3 = self.betas 
         y = self.Bianchi(z)
         m = 10**self.log10mg
         
@@ -292,7 +283,7 @@ class Supernova_data:
         
         return np.array([z, DM_SN]).T
     
-    def cov_distance_modulus(self):
+    def data_cov(self):
         a, b, MB = self.param[:3]
         z = self.data.T[0]
         del_mb, del_x1, del_C = self.err.T
@@ -305,7 +296,7 @@ class Supernova_data:
         # this function returns the error, that is the sqrt of the diagonal entries of cov
 
 
-        return np.sqrt(np.diagonal(self.cov_distance_modulus()))
+        return np.sqrt(np.diagonal(self.data_cov()))
     
     
 class Quasar_data:
@@ -356,7 +347,7 @@ class Quasar_data:
         
         return np.array([z, DM_Q]).T
         
-    def cov_distance_modulus(self):
+    def data_cov(self):
         s = self.param[1]
         z = self.data.T[0]
         err_logFX = self.err
@@ -370,7 +361,7 @@ class Quasar_data:
         # this function returns the error, that is the sqrt of the diagonal entries of cov
 
 
-        return np.sqrt(self.cov_distance_modulus())
+        return np.sqrt(self.data_cov())
 
 
 class BAO_data:
@@ -437,7 +428,7 @@ class BAO_data:
         
         rd = self.com_sound_horizon(z_d,cosmo) # sound horizon for given cosmology
         
-        DMpairs = np.empty([len(dtype), 2])
+        DMpairs = np.zeros([len(dtype), 2])
         
         for line in range(0,len(dtype)): 
             if dtype[line]=='DM*rd_fid/rd':
@@ -449,17 +440,17 @@ class BAO_data:
                 # calculate lumi dist and DM
                 lumiDist = (1 + z[line]) * meas[line]*rd
                 DMpairs[line] = ( z[line], 5*(np.log10(lumiDist) + 5) )
-
+                
             elif dtype[line]=='DA*rd_fid/rd':
                 lumiDist = (1 + z[line])**2 * meas[line]*rd/rd_fid
+                DMpairs[line] = ( z[line], 5*(np.log10(lumiDist) + 5) )
+
+            elif dtype[line]=='DA/rd':
+                lumiDist = (1 + z[line])**2 * meas[line]*rd
                 DMpairs[line] = ( z[line], 5*(np.log10(lumiDist) + 5) )
             
             elif dtype[line]=='DV*rd_fid/rd':
                 lumiDist =  (1 + z[line]) * ( (meas[line]*rd/rd_fid)**3 * cosmo.H(z[line])/self.cLight/z[line] )**(1/2)
-                DMpairs[line] =  ( z[line], 5*(np.log10(lumiDist) + 5) )    
-            
-            elif dtype[line]=='DV*rd/rd_fid':
-                lumiDist =  (1 + z[line]) * ( (meas[line]*rd_fid/rd)**3 * cosmo.H(z[line])/self.cLight/z[line] )**(1/2)
                 DMpairs[line] =  ( z[line], 5*(np.log10(lumiDist) + 5) )    
             
             elif dtype[line]=='DV/rd':
@@ -473,19 +464,45 @@ class BAO_data:
             elif dtype[line]=='A':
                 lumiDist =  (1 + z[line]) * (meas[line]/100)**(3/2) * (cosmo.H(z[line]))**(1/2) *self.cLight*z[line]/(cosmo.Omegam*(cosmo.H0/100)**2)**(3/4)
                 DMpairs[line] =  ( z[line], 5*(np.log10(lumiDist) + 5) )
+                    
+            elif dtype[line] == 'H*rdfid/rd' or dtype[line] == 'DH/rd':
+                continue
                 
             else:
                 raise ValueError('input data doesn\'t have a recognised format')
 
         return DMpairs
         
-    def cov_distance_modulus(self,cosmo):
+        
+    def Hubble(self, cosmo):
+        """This function extracts the measured Hubble rate at a given redshift."""
+        
+        z, meas = self.data.T
+        dtype = self.dataType
+        Hpairs = np.zeros([len(dtype), 2])
+        z_d = self.z_d
+        rd = self.com_sound_horizon(z_d,cosmo)
+        
+        for line in range(0,len(dtype)): 
+            if dtype[line] == 'H*rdfid/rd':
+                H = meas[line]
+                Hpairs[line] = (z[line], H)
+                    
+            elif dtype[line] == 'DH/rd':
+                H = self.cLight / meas[line] / rd
+                Hpairs[line] = (z[line], H)
+            else:
+                continue
+                
+        return Hpairs
+        
+    def data_cov(self,cosmo):
         # this function returns the covariance matrix.
 
         z, meas = self.data.T
         dtype = self.dataType
         
-        rd_fid = 147.78 # fiducial sound horizon in MPc
+        rd_fid = 147.78 # fiducial sound horizon in Mpc
         z_d = self.z_d
         
         rd = self.com_sound_horizon(z_d,cosmo) # sound horizon for given cosmology
@@ -494,14 +511,18 @@ class BAO_data:
                 
         for i in range(0,len(self.err)):
             for j in range(0,len(self.err)):
-                if dtype[i]==dtype[j]=='DM*rd_fid/rd' or dtype[i]==dtype[j]=='DM/rd' or dtype[i]==dtype[j]=='DA*rd_fid/rd':
+                if dtype[i]==dtype[j]=='DM*rd_fid/rd' or dtype[i]==dtype[j]=='DM/rd' or dtype[i]==dtype[j]=='DA*rd_fid/rd' or dtype[i]==dtype[j]=='DA/rd':
                     # calculate cov:
-                    covDM[i,j] =  (5/meas[i]) * self.err[i,j]**2 * (5/meas[j])
+                    covDM[i,j] =  (5/meas[i]) * self.err[i,j] *  (5/meas[j])
                 
                 elif dtype[i]==dtype[j]=='rd/DV' or dtype[i]==dtype[j]=='DV*rd_fid/rd' or dtype[i]==dtype[j]=='DV/rd' or dtype[i]==dtype[j]=='A':
-                    covDM[i,j] =  (5*3/2/meas[i]) * self.err[i,j]**2 * (5*3/2/meas[j])
+                    covDM[i,j] =  (5*3/2/meas[i]) * self.err[i,j] *  (5*3/2/meas[j])
+                
+                elif dtype[i]==dtype[j]=='H*rdfid/rd':
+                    covDM[i,j] = self.err[i,j] 
+                elif dtype[i]==dtype[j]=='DH/rd':
+                    covDM[i,j] = self.err[i,j] / meas[i] / meas[j] * self.cLight / rd
             
-        
         #return sigmaDM.T[0]
         return covDM   # BAO errors are now also arrays due to the correlations in WiggleZ data
     
@@ -509,8 +530,8 @@ class BAO_data:
         # this function returns the error, that is the sqrt of the diagonal entries of cov
 
 
-        return np.sqrt(np.diagonal(self.cov_distance_modulus(cosmo)))
-
+        return np.sqrt(np.diagonal(self.data_cov(cosmo)))
+    
 
 
 
@@ -600,7 +621,8 @@ class likelihood:
     """This class implements a generic likelihood function to pass to a emcee sampler.
     
     Input: parameter vector theta, data sets, cosmological model name."""
-        
+    
+    
     h = .7
     omega_baryon_preset = 0.022765/h**2
     omega_gamma_preset = 2.469E-5/h**2
@@ -631,19 +653,19 @@ class likelihood:
                 
 
         if self.model == 'LCDM':
-            Omegam, Omegac, rs, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = cosmology(Omegam, Omegac, rs = rs)
+            Omegam, Omegac, H0, rs, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = cosmology(Omegam, Omegac, rs = rs, Hzero=H0)
         elif self.model == 'wLCDM':
-            Omegam, Omegac, rs, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = cosmology(Omegam, Omegac, rs = rs, w = w)
+            Omegam, Omegac, H0, rs, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = cosmology(Omegam, Omegac, rs = rs, w = w, Hzero=H0)
         elif self.model == 'conformal':
-            gamma0, kappa, rs, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            gamma0, kappa, H0, rs, a, b, MB, delta_Mhost, beta_prime, s = self.params
             Omegak =  (gamma0)**2 / 2 *cosmology.cLight**2/(70./1E-3)**2#Gpc^-1
             Omegac = 1-Omegak
-            self.cosmo = cosmology(0., Omegac, rs = rs)
+            self.cosmo = cosmology(0., Omegac, rs = rs, Hzero=H0)
         elif self.model == 'bigravity':
-            log10m, t,  Omegam, rs, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = bigravity_cosmology(log10m, t, 1, 1, -1, 1, Omegam, rs = rs)
+            log10m, t,  Omegam, H0, rs, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = bigravity_cosmology(log10m, t, 1, 1, -1, 1, Omegam, rs = rs, Hzero=H0)
         else: 
             raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity]'))
 
