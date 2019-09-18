@@ -95,31 +95,37 @@ for ind in np.array([np.where(add_cov<0)[0]-1., np.where(add_cov<0)[0]], dtype=i
     
 CovBAO += Cov
 
-BAOdata = BAO_data(dataBAO, CovBAO, np.array([omega_baryon_preset, omega_gamma_preset]), typeBAO)
-LCDM = cosmology(Omega_m_preset, Omega_c_preset, w=-1, Hzero=69)
+BAOdata = BAO_data(dataBAO, CovBAO, typeBAO)
+
+
+#CMB Planck 2013 data
+CMBdata = CMB_data('Planck')
 
 
 
 model = sys.argv[-1]
 
-if not model in ['LCDM', 'wLCDM', 'conformal', 'bigravity']:
+if not model in ['LCDM', 'oLCDM', 'wLCDM', 'conformal', 'bigravity']:
     raise(NameError('Specify a cosmological model as the last argument.'))
 
-ranges_min = np.array([0, 0, 60., 125, -5, -10, -30, -.5, 0, 0]) #Omegam, Omegac, H0, rs, alpha, beta, MB, delda_M, beta_prime, s
-ranges_max = np.array([1, 1.5, 80., 175, 5, 10, -10, .5, 10, 3]) #Omegam, Omegac, H0, rs, alpha, beta, MB, delda_M, beta_prime, s
+ranges_min = np.array([0, 0, 60., -5, -10, -30, -.5, 0, 0]) #Omegam, Omegab, H0, alpha, beta, MB, delda_M, beta_prime, s
+ranges_max = np.array([1, 1., 80., 5, 10, -10, .5, 10, 3]) #Omegam, Omegab, H0, alpha, beta, MB, delda_M, beta_prime, s
 
+if model == 'oLCDM' or model == 'wLCDM': #insert Omegac prior
+    ranges_min = np.insert(ranges_min, 1, 0)
+    ranges_max = np.insert(ranges_max, 1, 1.5)
 
 if model == 'wLCDM': #insert w prior
     ranges_min = np.insert(ranges_min, -6, -2.5)
     ranges_max = np.insert(ranges_max, -6, -1/3.)
 
 elif model == 'conformal': #replace Omegam, Omegac -> gamma0, kappa priors
-    ranges_min[:2] = 0, 50
-    ranges_max[:2] = 1., 300
+    ranges_min = np.insert(ranges_min, 1, 50) #gamma0 range identical to Omegam
+    ranges_max = np.insert(ranges_max, 1, 300) #gamma0 range identical to Omegam
     
-elif model == 'bigravity': #remove Omegac prior and add Bigravity model priors
-    ranges_min = np.append([-33., 0], np.delete(ranges_min, 1))
-    ranges_max = np.append([-28., np.pi/2.], np.delete( ranges_max, 1))
+elif model == 'bigravity': #add Bigravity model priors
+    ranges_min = np.append([-33., 0], ranges_min)
+    ranges_max = np.append([-28., np.pi/2.], ranges_max)
     
 
 data_sets = []
@@ -129,6 +135,8 @@ if 'Quasars' in sys.argv:
     data_sets.append(Qdata)
 if 'BAO' in sys.argv:
     data_sets.append(BAOdata)
+if 'CMB' in sys.argv:
+    data_sets.append(CMBdata)
 if 'RC' in sys.argv:
     data_sets.append(RCdata)
      
