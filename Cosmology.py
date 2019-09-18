@@ -35,7 +35,7 @@ class cosmology:
         
         return np.array([self.Omegam, self.Omegac, self.Omegar, self.Omegab, self.Omegak])
 
-    def get_eos(self):
+    def get_eos(self, omegam, omegar, omegac):
         """Return the equation of state for this cosmology. This parameter can not be changed once initialized!"""
         
         return self.eos        
@@ -565,7 +565,7 @@ class BAO_data:
 
 class CMB_data:
     """Objects of this class represent simplified CMB measurements."""
-    
+    # Ref.: 1411.1074
     C_Planck13 = 1E-7 * np.array([[1.286,-6.033, -144.3],
                                   [-6.033, 75.42, -360.5],
                                   [-144.3, -360.5, 42640]])
