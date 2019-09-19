@@ -434,17 +434,6 @@ class BAO_data:
     def get_err(self):
         return self.err
     
-    def get_param(self):
-        return self.param
-    
-    def set_param(self, new_param):
-        if len(new_param) != 2: 
-            raise ValueError('Parameters have wrong format: param = (omega_)')
-        self.param = new_param
-        
-        return self
-        
-         
     def distance_modulus(self,cosmo):
         # where our heroes convert all BAO data (which come from a variety of formats) into
         # the standardised dist mod
@@ -566,26 +555,39 @@ class BAO_data:
 class CMB_data:
     """Objects of this class represent simplified CMB measurements."""
     # Ref.: 1411.1074
+    C_Planck18 = np.array([[2.8714501E-08, -1.8525566E-07, 2.5062628E-08],
+                           [-1.8525566E-07, 2.5811906E-06, -2.3468816E-07],
+                           [2.5062628E-08, -2.3468816E-07, 1.0694029E-07]])
+    mu_Planck18 = np.array([2.2531710E-02, 1.1862903E-01, 1.0410763E+00])# Omega_b, Omega_m - Omega_b, 100 rd / DM!!!!!!!!!!!!!!!!!!!!
+
+    
     C_Planck13 = 1E-7 * np.array([[1.286,-6.033, -144.3],
                                   [-6.033, 75.42, -360.5],
                                   [-144.3, -360.5, 42640]])
-    mu_Planck = np.array([.02245, .1386, 94.33]) # Omega_b, Omega_m, DM/rd
+    mu_Planck13 = np.array([.02245, .1386, 94.33]) # Omega_b, Omega_m, DM/rd
 
     C_WMAP = 1E-7 * np.array([[2.864, -4.809, -111.1],
                               [-4.809, 190.8, -74.95],
                               [-111.1, -74.95, 254200]])
     mu_WMAP = np.array([.02259, .1354, 94.51]) # Omega_b, Omega_m, DM/rd
     
-    def __init__(self, satelite):
+    def __init__(self, satellite):
         
         self.name = 'CMB'
-        if satelite == 'Planck':
-            self.data  = self.mu_Planck  # Omega_b, Omega_m, DM/rd
+        self.satellite = satellite
+        if satellite == 'Planck18':
+            self.data  = self.mu_Planck18  # Omega_b, Omega_DM, 100 rd/DM
+            self.cov = self.C_Planck18
+        if satellite == 'Planck13':
+            self.data  = self.mu_Planck13  # Omega_b, Omega_m, DM/rd
             self.cov = self.C_Planck13
-        elif satelite == 'WMAP' or  satelite == 'Wmap':
+        elif satellite == 'WMAP' or  satellite == 'Wmap':
             self.data  = self.mu_WMAP  # Omega_b, Omega_m, DM/rd
             self.cov = self.C_WMAP 
             
+    
+    def get_data(self):
+        return self.data
     
     def log_likelihood(self, cosmo):
         """Compute the log likelihood for the CMB data given a cosmology. THIS MUST GO IN COSMOLOGY CLASS EVENTUALLY!!!"""
@@ -597,7 +599,10 @@ class CMB_data:
         Omegab = cosmo.Omegab
         Omegam = cosmo.Omegam
         rs = cosmo.rd()
-        mu = self.data - np.array([Omegab*h**2, Omegam*h**2, cosmo.luminosity_distance(1089) / (1089 + 1) / rs])
+        if self.satellite == 'Planck18':
+            mu = self.data - np.array([Omegab*h**2, Omegam*h**2 - Omegab*h**2, 100 * rs / (cosmo.luminosity_distance(1089) / (1089 + 1))])
+        else:
+            mu = self.data - np.array([Omegab*h**2, Omegam*h**2, cosmo.luminosity_distance(1089) / (1089 + 1) / rs])
         
         Cov_inv = np.linalg.inv(self.cov)
         
@@ -727,21 +732,21 @@ class likelihood:
 
         if self.model == 'LCDM':
             Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = cosmology(omegam=Omegam, omegac=1 - Omegam, omegab = Omegab, Hzero=H0)
+            self.cosmo = cosmology(omegam=Omegam, omegac=1 - Omegam, omegab = Omegab, omegar = self.omega_gamma_preset, Hzero=H0)
         elif self.model == 'oLCDM':
             Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = cosmology(omegam=Omegam, omegac=Omegac, omegab = Omegab, Hzero=H0)
+            self.cosmo = cosmology(omegam=Omegam, omegac=Omegac, omegab = Omegab, omegar = self.omega_gamma_preset, Hzero=H0)
         elif self.model == 'wLCDM':
             Omegam, Omegac, Omegab, H0, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = cosmology(omegam=Omegam, omegac=Omegac, omegab = Omegab, w = w, Hzero=H0)
+            self.cosmo = cosmology(omegam=Omegam, omegac=Omegac, omegab = Omegab, omegar = self.omega_gamma_preset, w = w, Hzero=H0)
         elif self.model == 'conformal':
             gamma0, kappa, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
             Omegak =  (gamma0)**2 / 2 *cosmology.cLight**2/(70./1E-3)**2#Gpc^-1
             Omegac = 1-Omegak
-            self.cosmo = cosmology(omegam=0., omegac=Omegac, omegab = Omegab, Hzero=H0)
+            self.cosmo = cosmology(omegam=0., omegac=Omegac, omegab = Omegab, omegar = self.omega_gamma_preset, Hzero=H0)
         elif self.model == 'bigravity':
             log10m, t,  Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = bigravity_cosmology(log10m, t, 1, 1, -1, 1, omegam=Omegam, omegab = Omegab, Hzero=H0)
+            self.cosmo = bigravity_cosmology(log10m, t, 1, 1, -1, 1, omegam=Omegam, omegab = Omegab, omegar = self.omega_gamma_preset, Hzero=H0)
         else: 
             raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity]'))
 
@@ -783,9 +788,6 @@ class likelihood:
             Omegak =  (gamma0)**2 / 2 *cosmology.cLight**2/(self.cosmo.H0/1E-3)**2#Gpc^-1
             if Omegak > 1: #Omegac < 0
                 return -np.inf
-            
-        if self.cosmo.Omegab > self.cosmo.Omegam:
-            return -np.inf
         
         for i in range(len(self.params)):
             if self.params[i] < self.ranges_min[i]:
@@ -797,13 +799,15 @@ class likelihood:
     
     def lnprior_gauss(self):
         """Compute a prior which is gaussian in Omegab, H0"""
-        if self.model == 'bigravity':
-            Omegab, H0 = self.params[7:9]
+        if self.model == 'LCDM':
+            Omegab, H0 = self.params[1:3]
+        elif self.model == 'bigravity':
+            Omegab, H0 = self.params[3:5]
         else:
             Omegab, H0 = self.params[2:4]
         h = H0 / 100
 
-        gauss = - (rs - 147.27)**2 / (2 * 0.62)
+        gauss = - (Omegab*h**2 - 0.02235)**2 / (2 * 7.4E-4**2)
 
         return self.lnprior_flat() + gauss    
 

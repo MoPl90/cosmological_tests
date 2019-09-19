@@ -99,7 +99,7 @@ BAOdata = BAO_data(dataBAO, CovBAO, typeBAO)
 
 
 #CMB Planck 2013 data
-CMBdata = CMB_data('Planck')
+CMBdata = CMB_data('Planck18')
 
 
 
@@ -109,7 +109,7 @@ if not model in ['LCDM', 'oLCDM', 'wLCDM', 'conformal', 'bigravity']:
     raise(NameError('Specify a cosmological model as the last argument.'))
 
 ranges_min = np.array([0, 0, 60., -5, -10, -30, -.5, 0, 0]) #Omegam, Omegab, H0, alpha, beta, MB, delda_M, beta_prime, s
-ranges_max = np.array([1, 1., 80., 5, 10, -10, .5, 10, 3]) #Omegam, Omegab, H0, alpha, beta, MB, delda_M, beta_prime, s
+ranges_max = np.array([1, 0.1, 80., 5, 10, -10, .5, 10, 3]) #Omegam, Omegab, H0, alpha, beta, MB, delda_M, beta_prime, s
 
 if model == 'oLCDM' or model == 'wLCDM': #insert Omegac prior
     ranges_min = np.insert(ranges_min, 1, 0)
@@ -142,7 +142,7 @@ if 'RC' in sys.argv:
      
 def Likelihood(theta): 
     l = likelihood(theta, data_sets, ranges_min, ranges_max, model = model)
-    return l.logprobability_flat_prior()
+    return l.logprobability_gauss_prior()
 
 ndim, nwalkers, nsteps = len(ranges_min), 512, 1000
 pos0 = np.random.uniform(ranges_min, ranges_max,(nwalkers,len(ranges_max)))
