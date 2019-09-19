@@ -26,3 +26,7 @@ Now the Code should run!
 The Supernova data is from the Joint Light curve analysis (Betoule et al., arXiv:1401.4064)
 
 Qusar data courtesy of Elisabeta Risaliti; analysis following (Risaliti & Lusso,  arXiv:1505.07118 and arXiv:1811.02590)
+
+BAO data: see publication.
+
+CMB data: Planck legacy archive (https://pla.esac.esa.int/)
