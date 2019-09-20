@@ -114,7 +114,7 @@ class cosmology:
         
         #first integrate to obtain the comoving distance
         if isinstance(z, (float, int)):
-            dC = self.cLight * integrate.quad(lambda x: 1/self.H(x), 0, z)[0]
+            dC = self.cLight * integrate.quad(lambda x: 1/self.H(x), eps, z)[0]
         elif isinstance(z, (list, np.ndarray)):
             z_int = np.append([0], z)
             dC = self.cLight * integrate.cumtrapz(1/self.H(z_int), z_int)
@@ -195,8 +195,8 @@ class cosmology:
 class bigravity_cosmology(cosmology):
     """This class inherits from the cosmology base class and implements a bigravity cosmology."""
 
-    def __init__(self, log10m, theta, b0, b1, b2, b3, omegam, rs=147.27, omegar=None, Hzero=70.):
-        super().__init__(omegam, 0, rs, omegar, w=-1, Hzero=Hzero)
+    def __init__(self, log10m, theta, b0, b1, b2, b3, omegam, rs=147.27, omegar=None, omegab=None, Hzero=70.):
+        super().__init__(omegam, omegac=0, rs=rs, omegar=omegar, omegab=omegab, w=-1, Hzero=Hzero)
         self.log10mg = log10m
         self.t = theta
         self.betas = np.array([b0, b1, b2, b3])
@@ -699,9 +699,11 @@ class likelihood:
     Input: parameter vector theta, data sets, cosmological model name."""
     
     
-    h = .7
-    omega_baryon_preset = 0.022765/h**2
+    h = .6727
+    omega_baryon_preset = 0.02236/h**2
     omega_gamma_preset = 2.469E-5/h**2
+
+
     
     def __init__(self, theta, data_sets, ranges_min, ranges_max, model ='LCDM'):
         
@@ -798,7 +800,7 @@ class likelihood:
         return 0    
     
     def lnprior_gauss(self):
-        """Compute a prior which is gaussian in Omegab, H0"""
+        """Compute a prior which is gaussian in Omegab h^2"""
         if self.model == 'LCDM':
             Omegab, H0 = self.params[1:3]
         elif self.model == 'bigravity':

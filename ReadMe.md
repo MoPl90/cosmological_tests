@@ -4,7 +4,7 @@ To run the notebook Sample_Cosmo.ipynb, you will need the package emcee (version
 
 1) execute git clone https://github.com/MoPl90/cosmological_tests in your preferred directory
 
-2) conda create -n emcee3 numpy scipy jupyter matplotlib astropy tqdm h5py
+2) conda create -n emcee3 numpy scipy jupyter matplotlib astropy tqdm h5py schwimmbad mpi4py
 
 3) conda activate emcee3
 
