@@ -7,7 +7,7 @@ import sys
 
 #Parameters for BAO -- CHECK THESE VALUES
 z_d = 1089
-h = .7
+h = h = .6727
 omega_baryon_preset = 0.022765/h**2
 omega_gamma_preset = 2.469E-5/h**2
 
