@@ -72,6 +72,7 @@ class cosmology:
         if self.Omegar is None or self.Omegab is None:
             raise(ValueError('To compute a speed of sound, set Omega_r and Omega_b to numerical values first.'))
         else:
+            rel_density = self.Omegar + 7/8 * (4/11)**(4/3) * 3.0 * self.Omegar #Neutrinos are not yet decoupled!
             soundspeed = self.cLight/np.sqrt(3*(1+3/4*self.Omegab/self.Omegar /(1+z)))  
         
         return soundspeed
@@ -446,7 +447,7 @@ class BAO_data:
         rd_fid = 147.78 # fiducial sound horizon in MPc
         z_d = self.z_d
         
-        rd = cosmo.rd() # sound horizon for given cosmology
+        rd = cosmo.com_sound_horizon() # sound horizon for given cosmology
         
         DMpairs = np.zeros([len(dtype), 2])
         
@@ -501,7 +502,7 @@ class BAO_data:
         dtype = self.dataType
         Hpairs = np.zeros([len(dtype), 2])
         z_d = self.z_d
-        rd = cosmo.rd()
+        rd = cosmo.com_sound_horizon()
         
         for line in range(0,len(dtype)): 
             if dtype[line] == 'H*rdfid/rd':
@@ -525,7 +526,7 @@ class BAO_data:
         rd_fid = 147.78 # fiducial sound horizon in Mpc
         z_d = self.z_d
         
-        rd = cosmo.rd() # sound horizon for given cosmology
+        rd = cosmo.com_sound_horizon() # sound horizon for given cosmology
         
         covDM = np.zeros([len(self.err), len(self.err)])
                 
@@ -600,7 +601,7 @@ class CMB_data:
         h = cosmo.H0 / 100.
         Omegab = cosmo.Omegab
         Omegam = cosmo.Omegam
-        rs = cosmo.rd()
+        rs = cosmo.com_sound_horizon()
         if self.satellite == 'Planck18':
             mu = self.data - np.array([Omegab*h**2, Omegam*h**2 - Omegab*h**2, 100 * rs / (cosmo.luminosity_distance(1089) / (1089 + 1))])
         else:
