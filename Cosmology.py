@@ -94,8 +94,10 @@ class cosmology:
 
         if self.Omegab is None:
             raise(ValueError("Omega_b must have numerical value"))
-        
-        return 55.154 * np.exp(-72.3 * (Omega_nu * h**2 + .0006)**2) / (h**2 * self.Omegam)**.25351 / (h**2 * self.Omegab)**.12807
+        elif self.Omegam == 0.:
+            return self.r_sound
+        else:
+            return 55.154 * np.exp(-72.3 * (Omega_nu * h**2 + .0006)**2) / (h**2 * self.Omegam)**.25351 / (h**2 * self.Omegab)**.12807
 
     
     def H(self, z):
