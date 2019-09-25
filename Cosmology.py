@@ -67,32 +67,33 @@ class cosmology:
         
         return self
         
-    def sound_speed(self,z):
+    def sound_speed(self,z, m_nu = 0.06):
         """Compute the speed of sound in the baryon-phonton plasma."""
         if self.Omegar is None or self.Omegab is None:
             raise(ValueError('To compute a speed of sound, set Omega_r and Omega_b to numerical values first.'))
         else:
-            rel_density = self.Omegar + 7/8 * (4/11)**(4/3) * 3.0 * self.Omegar #Neutrinos are not yet decoupled!
-            soundspeed = self.cLight/np.sqrt(3*(1+3/4*self.Omegab/self.Omegar /(1+z)))  
+            photon_density =  self.Omegar / (1+ 7/8 * (4/11)**(4/3) * 3.046)  
+            soundspeed = self.cLight/np.sqrt(3*(1+3/4*self.Omegab/photon_density /(1+z)))  
         
         return soundspeed
     
-    def com_sound_horizon(self,z_d=1089.):
+    def com_sound_horizon(self,z_d=1089., m_nu = 0.06):
         """Compute the sound horizon at a given redshift. If Omega_r and Omega_b do not have numerical values, the default r_s is returned."""
         
         if self.Omegar is None or self.Omegab is None:
             rs = self.r_sound
         else:
-            rs = integrate.quad(lambda z:self.sound_speed(z)/(self.H(z)),z_d,np.inf)[0]
+            self.Omegar *= 1 + 7/8 * (4/11)**(4/3) * 3.046 
+            rs = integrate.quad(lambda z:self.sound_speed(z,m_nu)/(self.H(z)),z_d,np.inf)[0]
             self.r_sound = rs
-        
+            self.Omegar /= 1+ 7/8 * (4/11)**(4/3) * 3.046 
         return rs
     
-    def rd(self, m_nu = 1E-3): 
+    def rd(self, m_nu = 0.06): 
         """Accuarte Numerical approximation to the sound horizon, cf. arXiv:1411.1074"""
-        Omega_nu = .0101 * m_nu#eV
         h = self.H0/100
-
+        Omega_nu = .0101 * m_nu / h**2#eV
+        
         if self.Omegab is None:
             raise(ValueError("Omega_b must have numerical value"))
         elif self.Omegam == 0.:
