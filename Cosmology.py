@@ -15,35 +15,98 @@ class cosmology:
     cLight = 3E5 # speed of light in km/s
     #H0 = 70. #the present day Hubble rate in km/s/Mps
     
-    def __init__(self, omegam, omegac, omegar=0, w=-1, Hzero=70):
+    def __init__(self, omegam, omegac, rs = 147.27, omegar=None, omegab = None, w=-1, Hzero=70):
         """Initialise a cosmological model"""
+        self.r_sound = rs
+        self.Omegac = omegac #dark energy density
         self.Omegam = omegam #non-relativistic matter energy density
         self.Omegar = omegar #relativistic matter energy density
-        self.Omegac = omegac #dark energy density
-        self.Omegak = 1 - omegam - omegac #curvature energy density
+        self.Omegab = omegab
+        
+        self.Omegak = 1 - self.Omegam - self.Omegac if self.Omegar is None else 1 - self.Omegam - self.Omegac - self.Omegar #curvature energy density
+        
         self.eos = w #the dark energy equation of state
         self.H0 = Hzero #the present day Hubble rate in km/s/Mps
+    
+    def get_energy_densities(self):
+        """Return the current values of Omega_i as a numpy array. 
         
-    def set_energy_densities(self, omegam, omegac):
-        """Change the initialised values of Omega_i."""
-        self.Omegam = omegam #non-relativistic matter energy density
-        self.Omegar = omegar #relativistic matter energy density
-        self.Omegac = omegac #dark energy density
-        self.Omegak = 1 - omegam - omegac #curvature energy density
+        Returns: [Omega_m, Omega_c, Omega_r, Omega_b, Omega_k]"""
         
-    def get_energy_densities(self, omegam, omegar, omegac):
-        """Return the current values of Omega_i as a numpy array."""
-        
-        return np.array([self.Omegam, self.Omegar, self.Omegac, self.Omegak])
+        return np.array([self.Omegam, self.Omegac, self.Omegar, self.Omegab, self.Omegak])
 
     def get_eos(self, omegam, omegar, omegac):
         """Return the equation of state for this cosmology. This parameter can not be changed once initialized!"""
         
-        return self.eos
+        return self.eos        
+    
+    def set_energy_densities(self, omegam=None, omegac=None, omegar=None, omegab=None):
+        """Change the initialised values of Omega_i."""
+        if not omegam is None:
+            self.Omegam = omegam #non-relativistic matter energy density
+        if not omegac is None:
+            self.Omegac = omegac #dark energy density
+        if not omegar is None:
+            self.Omegar = omegar #relativistic matter energy density
+        if not omegab is None:
+            self.Omegab = omegab #baryonic matter energy density
+        
+        self.Omegak = 1 - self.Omegam - self.Omegac if self.Omegar is None else 1 - self.Omegam - self.Omegac - self.Omegar #curvature energy density
+        
+        return self
+    
+    def set_eos(self, w):
+        """Change the value of the equation of state of Dark Energy."""
+        
+        self.eos = w
+        return self
+    
+    def set_sound_horizon(self, rs):
+        """Set a new value for the sound horizon."""
+        self.r_sound = rs
+        
+        return self
+        
+    def sound_speed(self,z):
+        """Compute the speed of sound in the baryon-phonton plasma."""
+        if self.Omegar is None or self.Omegab is None:
+            raise(ValueError('To compute a speed of sound, set Omega_r and Omega_b to numerical values first.'))
+        else:
+            rel_density = self.Omegar + 7/8 * (4/11)**(4/3) * 3.0 * self.Omegar #Neutrinos are not yet decoupled!
+            soundspeed = self.cLight/np.sqrt(3*(1+3/4*self.Omegab/self.Omegar /(1+z)))  
+        
+        return soundspeed
+    
+    def com_sound_horizon(self,z_d=1089.):
+        """Compute the sound horizon at a given redshift. If Omega_r and Omega_b do not have numerical values, the default r_s is returned."""
+        
+        if self.Omegar is None or self.Omegab is None:
+            rs = self.r_sound
+        else:
+            rs = integrate.quad(lambda z:self.sound_speed(z)/(self.H(z)),z_d,np.inf)[0]
+            self.r_sound = rs
+        
+        return rs
+    
+    def rd(self, m_nu = 1E-3): 
+        """Accuarte Numerical approximation to the sound horizon, cf. arXiv:1411.1074"""
+        Omega_nu = .0101 * m_nu#eV
+        h = self.H0/100
+
+        if self.Omegab is None:
+            raise(ValueError("Omega_b must have numerical value"))
+        elif self.Omegam == 0.:
+            return self.r_sound
+        else:
+            return 55.154 * np.exp(-72.3 * (Omega_nu * h**2 + .0006)**2) / (h**2 * self.Omegam)**.25351 / (h**2 * self.Omegab)**.12807
+
     
     def H(self, z):
         """Compute the Hubble rate H(z) for a given redshift z."""
-        return self.H0 * np.sqrt(self.Omegar * (1+z)**4 + self.Omegam * (1+z)**3 + self.Omegak * (1+z)**2 + self.Omegac * (1+z)**(3*(1 + self.eos)))
+        if not self.Omegar is None:
+            return self.H0 * np.sqrt(self.Omegar * (1+z)**4 + self.Omegam * (1+z)**3 + self.Omegak * (1+z)**2 + self.Omegac * (1+z)**(3*(1 + self.eos)))
+        else:
+            return self.H0 * np.sqrt(self.Omegam * (1+z)**3 + self.Omegak * (1+z)**2 + self.Omegac * (1+z)**(3*(1 + self.eos)))
         
 
     def luminosity_distance(self, z, eps = 1E-3):
@@ -54,7 +117,7 @@ class cosmology:
         
         #first integrate to obtain the comoving distance
         if isinstance(z, (float, int)):
-            dC = self.cLight * integrate.quad(lambda x: 1/self.H(x), 0, z)[0]
+            dC = self.cLight * integrate.quad(lambda x: 1/self.H(x), eps, z)[0]
         elif isinstance(z, (list, np.ndarray)):
             z_int = np.append([0], z)
             dC = self.cLight * integrate.cumtrapz(1/self.H(z_int), z_int)
@@ -80,15 +143,17 @@ class cosmology:
     def log_likelihood(self, dataObject):
         """Compute the Gaussian log-likelihood for given data tuples (z, DM(z)) and covariance."""
         
-        
-        
+       
   
         if dataObject.name == 'Quasars' or dataObject.name == 'SN':
             data = dataObject.distance_modulus()
-            Cov = dataObject.cov_distance_modulus()
+            Cov = dataObject.data_cov()
         elif dataObject.name == 'BAO':
-            data = dataObject.distance_modulus(self)
-            Cov = dataObject.cov_distance_modulus(self)
+            data = dataObject.distance_modulus(self) + dataObject.Hubble(self)
+            Cov = dataObject.data_cov(self)
+        elif dataObject.name == 'CMB':
+            return dataObject.log_likelihood(self)
+        
         else:
             raise ValueError('Data type needs to be associated with input (e.g. BAO, quasars, ...)')
             
@@ -104,22 +169,14 @@ class cosmology:
             DM_data = data[:,1]
         else:
             raise ValueError('Data has wrong format.')
-            
-
- 
-        #if dataObject.name == 'Quasars' or dataObject.name == 'SN':
-            #data = dataObject.distance_modulus()
-            #Cov = dataObject.delta_distance_modulus()
-        #elif dataObject.name == 'BAO':
-            #data = dataObject.distance_modulus(self)
-            #Cov = 1
-       # else:
-            #raise ValueError('Data type needs to be associated with input (e.g. BAO, quasuars, ...)')
- 
+           
  
         # define the model DM:
-        
-        model = self.distance_modulus(z)
+        if dataObject.name == 'Quasars' or dataObject.name == 'SN':
+            model = self.distance_modulus(z)
+        elif dataObject.name == 'BAO':
+            model = np.array([self.distance_modulus(zi) if zi != 0. else 0. for zi in dataObject.distance_modulus(self).T[0]])
+            model += np.array([self.H(zi) if zi != 0. else 0. for zi in dataObject.Hubble(self).T[0]])
         
 
         
@@ -141,8 +198,8 @@ class cosmology:
 class bigravity_cosmology(cosmology):
     """This class inherits from the cosmology base class and implements a bigravity cosmology."""
 
-    def __init__(self, log10m, theta, b0, b1, b2, b3, omegam, omegar=0, Hzero=70.):
-        super().__init__(omegam, 0, omegar, w=-1, Hzero=Hzero)
+    def __init__(self, log10m, theta, b0, b1, b2, b3, omegam, rs=147.27, omegar=None, omegab=None, Hzero=70.):
+        super().__init__(omegam, omegac=0, rs=rs, omegar=omegar, omegab=omegab, w=-1, Hzero=Hzero)
         self.log10mg = log10m
         self.t = theta
         self.betas = np.array([b0, b1, b2, b3])
@@ -198,6 +255,7 @@ class bigravity_cosmology(cosmology):
         except RuntimeError:
             return -10 * np.ones_like(z)
         
+
         if np.all(x1 >= a2) and np.all(-a2 - x1 + (2*a1(z))/np.sqrt(-a2 + x1) >= 0.) and np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.) and np.all(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.) and np.all((1/6)*(-8*a2 - (2*2**(1/3)*(12*a0 + a2**2))/(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3) - 2**(2/3)*(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3) + (12*np.sqrt(6)*a1(0))/np.sqrt(-4*a2 + (2*2**(1/3)*(12*a0 + a2**2))/(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3) + 2**(2/3)*(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)))):
             return np.real(-np.sqrt(-a2 + x1)/2. + np.sqrt(-a2 - x1 + (2*a1(z))/np.sqrt(-a2 + x1))/2.)
         else: 
@@ -215,7 +273,7 @@ class bigravity_cosmology(cosmology):
         Hubble rate H(z)
         """
         
-        b0, b1, b2, b3 = self.betas
+        b0, b1, b2, b3 = self.betas 
         y = self.Bianchi(z)
         m = 10**self.log10mg
         
@@ -226,7 +284,7 @@ class bigravity_cosmology(cosmology):
                 CC_dyn = m**2 * np. sin(self.t)**2 * (b0*np.ones_like(y) + 3*b1*y + 3*b2*y**2 + b3*y**3)/3.
                 hubble_squared = self.H0**2 * (self.Omegam * (1+z)**3 )#+ Omegak * (1+z)**2 + Omegac) 
                 
-                return np.sqrt(hubble_squared + CC_dyn*eV)
+                return np.sqrt(hubble_squared + CC_dyn*eV**2)
             
         if np.any(y<0):
             return np.zeros_like(z)
@@ -234,7 +292,7 @@ class bigravity_cosmology(cosmology):
             CC_dyn = m**2 * np. sin(self.t)**2 * (b0*np.ones_like(y) + 3*b1*y + 3*b2*y**2 + b3*y**3)/3.
             hubble_squared = self.H0**2 * (self.Omegam * (1+z)**3 )#+ Omegak * (1+z)**2 + Omegac) 
 
-            return np.sqrt(hubble_squared + CC_dyn.T*eV)
+            return np.sqrt(hubble_squared + CC_dyn.T*eV**2)
         
 
 class Supernova_data:
@@ -265,6 +323,8 @@ class Supernova_data:
             raise ValueError('Parameters have wrong format: param = (a, b, MB, delta_Mhost)')
         self.param = new_param
         
+        return self
+        
     def distance_modulus(self):
         a, b, MB, delta_Mhost = self.param
         z, mb, x1, c, Mhost = self.data.T
@@ -273,7 +333,7 @@ class Supernova_data:
         
         return np.array([z, DM_SN]).T
     
-    def cov_distance_modulus(self):
+    def data_cov(self):
         a, b, MB = self.param[:3]
         z = self.data.T[0]
         del_mb, del_x1, del_C = self.err.T
@@ -286,7 +346,7 @@ class Supernova_data:
         # this function returns the error, that is the sqrt of the diagonal entries of cov
 
 
-        return np.sqrt(np.diagonal(self.cov_distance_modulus()))
+        return np.sqrt(np.diagonal(self.data_cov()))
     
     
 class Quasar_data:
@@ -322,9 +382,12 @@ class Quasar_data:
             raise ValueError('Parameters have wrong format: param = (beta_prime, s)')
         self.param = new_param
         
+        return self
+    
     def set_gamma(self, new_gamma):
         self.gamma = new_gamma
 
+        return self
         
     def distance_modulus(self):
         beta_prime = self.param[0]
@@ -334,7 +397,7 @@ class Quasar_data:
         
         return np.array([z, DM_Q]).T
         
-    def cov_distance_modulus(self):
+    def data_cov(self):
         s = self.param[1]
         z = self.data.T[0]
         err_logFX = self.err
@@ -348,7 +411,7 @@ class Quasar_data:
         # this function returns the error, that is the sqrt of the diagonal entries of cov
 
 
-        return np.sqrt(self.cov_distance_modulus())
+        return np.sqrt(self.data_cov())
 
 
 class BAO_data:
@@ -358,13 +421,12 @@ class BAO_data:
     z_d = 1089   # redshift of decoupling
     
     
-    def __init__(self, data, err, param, dataType):
+    def __init__(self, data, err, dataType):
         if data.shape[1] != 2 and err.shape[1] != 1:
             raise ValueError('Data has wrong format: data = (z, DM/rd)')
         else:
             self.data = data   
             self.err = err   
-            self.param = param
             self.dataType = dataType
             self.name = "BAO"
             
@@ -376,28 +438,6 @@ class BAO_data:
     def get_err(self):
         return self.err
     
-    def get_param(self):
-        return self.param
-    
-    def set_param(self, new_param):
-        if len(new_param) != 2: 
-            raise ValueError('Parameters have wrong format: param = (beta_prime, s)')
-        self.param = new_param
-        
-    def sound_speed(self,z):
-        omega_baryon, omega_gamma = self.param
-    
-        soundspeed = self.cLight/np.sqrt(3*(1+3/4*omega_baryon/omega_gamma /(1+z)))  
-        
-        return soundspeed
-    
-    def com_sound_horizon(self,z_d,cosmo):
-            
-        comsoundhorizon = integrate.quad(lambda z:self.sound_speed(z)/(cosmo.H(z)),z_d,np.inf)[0]
-        
-        return comsoundhorizon
- 
-         
     def distance_modulus(self,cosmo):
         # where our heroes convert all BAO data (which come from a variety of formats) into
         # the standardised dist mod
@@ -408,9 +448,9 @@ class BAO_data:
         rd_fid = 147.78 # fiducial sound horizon in MPc
         z_d = self.z_d
         
-        rd = self.com_sound_horizon(z_d,cosmo) # sound horizon for given cosmology
+        rd = cosmo.com_sound_horizon() # sound horizon for given cosmology
         
-        DMpairs = np.empty([len(dtype), 2])
+        DMpairs = np.zeros([len(dtype), 2])
         
         for line in range(0,len(dtype)): 
             if dtype[line]=='DM*rd_fid/rd':
@@ -418,13 +458,26 @@ class BAO_data:
                 lumiDist = (1 + z[line]) * meas[line]*rd/rd_fid
                 DMpairs[line] = ( z[line], 5*(np.log10(lumiDist) + 5) )
             
+            elif dtype[line]=='DM/rd':
+                # calculate lumi dist and DM
+                lumiDist = (1 + z[line]) * meas[line]*rd
+                DMpairs[line] = ( z[line], 5*(np.log10(lumiDist) + 5) )
+                
             elif dtype[line]=='DA*rd_fid/rd':
                 lumiDist = (1 + z[line])**2 * meas[line]*rd/rd_fid
+                DMpairs[line] = ( z[line], 5*(np.log10(lumiDist) + 5) )
+
+            elif dtype[line]=='DA/rd':
+                lumiDist = (1 + z[line])**2 * meas[line]*rd
                 DMpairs[line] = ( z[line], 5*(np.log10(lumiDist) + 5) )
             
             elif dtype[line]=='DV*rd_fid/rd':
                 lumiDist =  (1 + z[line]) * ( (meas[line]*rd/rd_fid)**3 * cosmo.H(z[line])/self.cLight/z[line] )**(1/2)
                 DMpairs[line] =  ( z[line], 5*(np.log10(lumiDist) + 5) )    
+            
+            elif dtype[line]=='DV/rd':
+                lumiDist =  (1 + z[line]) * ( (rd*meas[line])**3 * cosmo.H(z[line])/self.cLight/z[line] )**(1/2)
+                DMpairs[line] =  ( z[line], 5*(np.log10(lumiDist) + 5) )
                 
             elif dtype[line]=='rd/DV':
                 lumiDist =  (1 + z[line]) * ( (rd/meas[line])**3 * cosmo.H(z[line])/self.cLight/z[line] )**(1/2)
@@ -433,35 +486,65 @@ class BAO_data:
             elif dtype[line]=='A':
                 lumiDist =  (1 + z[line]) * (meas[line]/100)**(3/2) * (cosmo.H(z[line]))**(1/2) *self.cLight*z[line]/(cosmo.Omegam*(cosmo.H0/100)**2)**(3/4)
                 DMpairs[line] =  ( z[line], 5*(np.log10(lumiDist) + 5) )
+                    
+            elif dtype[line] == 'H*rdfid/rd' or dtype[line] == 'DH/rd':
+                continue
                 
             else:
                 raise ValueError('input data doesn\'t have a recognised format')
 
         return DMpairs
         
-    def cov_distance_modulus(self,cosmo):
+        
+    def Hubble(self, cosmo):
+        """This function extracts the measured Hubble rate at a given redshift."""
+        
+        z, meas = self.data.T
+        dtype = self.dataType
+        Hpairs = np.zeros([len(dtype), 2])
+        z_d = self.z_d
+        rd = cosmo.com_sound_horizon()
+        
+        for line in range(0,len(dtype)): 
+            if dtype[line] == 'H*rdfid/rd':
+                H = meas[line]
+                Hpairs[line] = (z[line], H)
+                    
+            elif dtype[line] == 'DH/rd':
+                H = self.cLight / meas[line] / rd
+                Hpairs[line] = (z[line], H)
+            else:
+                continue
+                
+        return Hpairs
+        
+    def data_cov(self,cosmo):
         # this function returns the covariance matrix.
 
         z, meas = self.data.T
         dtype = self.dataType
         
-        rd_fid = 147.78 # fiducial sound horizon in MPc
+        rd_fid = 147.78 # fiducial sound horizon in Mpc
         z_d = self.z_d
         
-        rd = self.com_sound_horizon(z_d,cosmo) # sound horizon for given cosmology
+        rd = cosmo.com_sound_horizon() # sound horizon for given cosmology
         
         covDM = np.zeros([len(self.err), len(self.err)])
                 
         for i in range(0,len(self.err)):
             for j in range(0,len(self.err)):
-                if dtype[i]==dtype[j]=='DM*rd_fid/rd' or dtype[i]==dtype[j]=='DA*rd_fid/rd':
+                if dtype[i]==dtype[j]=='DM*rd_fid/rd' or dtype[i]==dtype[j]=='DM/rd' or dtype[i]==dtype[j]=='DA*rd_fid/rd' or dtype[i]==dtype[j]=='DA/rd':
                     # calculate cov:
-                    covDM[i,j] =  (5/meas[i]) * self.err[i,j]**2 * (5/meas[j])
+                    covDM[i,j] =  (5/meas[i]) * self.err[i,j] *  (5/meas[j])
                 
-                elif dtype[i]==dtype[j]=='rd/DV' or dtype[i]==dtype[j]=='DV*rd_fid/rd' or dtype[i]==dtype[j]=='A':
-                    covDM[i,j] =  (5*3/2/meas[i]) * self.err[i,j]**2 * (5*3/2/meas[j])
+                elif dtype[i]==dtype[j]=='rd/DV' or dtype[i]==dtype[j]=='DV*rd_fid/rd' or dtype[i]==dtype[j]=='DV/rd' or dtype[i]==dtype[j]=='A':
+                    covDM[i,j] =  (5*3/2/meas[i]) * self.err[i,j] *  (5*3/2/meas[j])
+                
+                elif dtype[i]==dtype[j]=='H*rdfid/rd':
+                    covDM[i,j] = self.err[i,j] 
+                elif dtype[i]==dtype[j]=='DH/rd':
+                    covDM[i,j] = self.err[i,j] / meas[i] / meas[j] * self.cLight / rd
             
-        
         #return sigmaDM.T[0]
         return covDM   # BAO errors are now also arrays due to the correlations in WiggleZ data
     
@@ -469,10 +552,68 @@ class BAO_data:
         # this function returns the error, that is the sqrt of the diagonal entries of cov
 
 
-        return np.sqrt(np.diagonal(self.cov_distance_modulus(cosmo)))
+        return np.sqrt(np.diagonal(self.data_cov(cosmo)))
+    
 
 
+class CMB_data:
+    """Objects of this class represent simplified CMB measurements."""
+    # Ref.: 1411.1074
+    C_Planck18 = np.array([[2.8714501E-08, -1.8525566E-07, 2.5062628E-08],
+                           [-1.8525566E-07, 2.5811906E-06, -2.3468816E-07],
+                           [2.5062628E-08, -2.3468816E-07, 1.0694029E-07]])
+    mu_Planck18 = np.array([2.2531710E-02, 1.1862903E-01, 1.0410763E+00])# Omega_b, Omega_m - Omega_b, 100 rd / DM!!!!!!!!!!!!!!!!!!!!
 
+    
+    C_Planck13 = 1E-7 * np.array([[1.286,-6.033, -144.3],
+                                  [-6.033, 75.42, -360.5],
+                                  [-144.3, -360.5, 42640]])
+    mu_Planck13 = np.array([.02245, .1386, 94.33]) # Omega_b, Omega_m, DM/rd
+
+    C_WMAP = 1E-7 * np.array([[2.864, -4.809, -111.1],
+                              [-4.809, 190.8, -74.95],
+                              [-111.1, -74.95, 254200]])
+    mu_WMAP = np.array([.02259, .1354, 94.51]) # Omega_b, Omega_m, DM/rd
+    
+    def __init__(self, satellite):
+        
+        self.name = 'CMB'
+        self.satellite = satellite
+        if satellite == 'Planck18':
+            self.data  = self.mu_Planck18  # Omega_b, Omega_DM, 100 rd/DM
+            self.cov = self.C_Planck18
+        if satellite == 'Planck13':
+            self.data  = self.mu_Planck13  # Omega_b, Omega_m, DM/rd
+            self.cov = self.C_Planck13
+        elif satellite == 'WMAP' or  satellite == 'Wmap':
+            self.data  = self.mu_WMAP  # Omega_b, Omega_m, DM/rd
+            self.cov = self.C_WMAP 
+            
+    
+    def get_data(self):
+        return self.data
+    
+    def log_likelihood(self, cosmo):
+        """Compute the log likelihood for the CMB data given a cosmology. THIS MUST GO IN COSMOLOGY CLASS EVENTUALLY!!!"""
+        
+        if cosmo.Omegab is None:
+            raise(ValueError("Must set Omega_b before computing sound horizon!"))
+        
+        h = cosmo.H0 / 100.
+        Omegab = cosmo.Omegab
+        Omegam = cosmo.Omegam
+        rs = cosmo.com_sound_horizon()
+        if self.satellite == 'Planck18':
+            mu = self.data - np.array([Omegab*h**2, Omegam*h**2 - Omegab*h**2, 100 * rs / (cosmo.luminosity_distance(1089) / (1089 + 1))])
+        else:
+            mu = self.data - np.array([Omegab*h**2, Omegam*h**2, cosmo.luminosity_distance(1089) / (1089 + 1) / rs])
+        
+        Cov_inv = np.linalg.inv(self.cov)
+        
+        return -0.5 * mu @ Cov_inv @ mu
+
+    
+    
 
 import warnings
 warnings.simplefilter("ignore")
@@ -523,6 +664,8 @@ class RC_data:
 
     def set_param(self, new_params):
         self.gamma0, self.kappa = new_params 
+        
+        return self
 
     def vCG_square(self, r): # units of 1E9 Msol
         """Compute the *non-local* Conformal Gravity contribution to the rotational velocity."""
@@ -558,10 +701,13 @@ class likelihood:
     """This class implements a generic likelihood function to pass to a emcee sampler.
     
     Input: parameter vector theta, data sets, cosmological model name."""
-        
-    h = .7
-    omega_baryon_preset = 0.022765/h**2
+    
+    
+    h = .6727
+    omega_baryon_preset = 0.02236/h**2
     omega_gamma_preset = 2.469E-5/h**2
+
+
     
     def __init__(self, theta, data_sets, ranges_min, ranges_max, model ='LCDM'):
         
@@ -584,52 +730,38 @@ class likelihood:
                 self.data_sets['Quasars'] = sample
             elif sample.name == 'BAO':
                 self.data_sets['BAO'] = sample
+            elif sample.name == 'CMB':
+                self.data_sets['CMB'] = sample
             elif sample.name == 'RC' and self.model == 'conformal':
                 self.data_sets['RC'] = sample
                 
-        if 'BAO' in self.data_sets.keys():
-            if self.model == 'LCDM':
-                Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-                self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset, Hzero = H0)
-            elif self.model == 'wLCDM':
-                Omegam, Omegac, Omegab, H0, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
-                self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset, w = w, Hzero = H0)
-            elif self.model == 'conformal':
-                gamma0, kappa, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-                Omegak =  (gamma0)**2 / 2 *cosmology.cLight**2/(H0/1E-3)**2#Gpc^-1
-                Omegac = 1-Omegak
-                self.cosmo = cosmology(0., Omegac, omegar = self.omega_gamma_preset, Hzero = H0)
-            elif self.model == 'bigravity':
-                log10m, t, b0, b1, b2, b3, Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-                self.cosmo = bigravity_cosmology(log10m, t, b0, b1, b2, b3, Omegam, omegar = self.omega_gamma_preset, Hzero = H0)
-            else: 
-                raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity]'))
-        else:
-            if self.model == 'LCDM':
-                Omegam, Omegac, a, b, MB, delta_Mhost, beta_prime, s = self.params
-                self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset)
-            elif self.model == 'wLCDM':
-                Omegam, Omegac, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
-                self.cosmo = cosmology(Omegam, Omegac, omegar = self.omega_gamma_preset, w = w)
-            elif self.model == 'conformal':
-                gamma0, kappa, a, b, MB, delta_Mhost, beta_prime, s = self.params
-                Omegak =  (gamma0)**2 / 2 *cosmology.cLight**2/(70./1E-3)**2#Gpc^-1
-                Omegac = 1-Omegak
-                self.cosmo = cosmology(0., Omegac, omegar = self.omega_gamma_preset)
-            elif self.model == 'bigravity':
-                log10m, t, b0, b1, b2, b3, Omegam, a, b, MB, delta_Mhost, beta_prime, s = self.params
-                self.cosmo = bigravity_cosmology(log10m, t, b0, b1, b2, b3, Omegam)
-            else: 
-                raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity]'))
 
-            Omegab = self.omega_baryon_preset
-                
+        if self.model == 'LCDM':
+            Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = cosmology(omegam=Omegam, omegac=1 - Omegam, omegab = Omegab, omegar = self.omega_gamma_preset, Hzero=H0)
+        elif self.model == 'oLCDM':
+            Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = cosmology(omegam=Omegam, omegac=Omegac, omegab = Omegab, omegar = self.omega_gamma_preset, Hzero=H0)
+        elif self.model == 'wLCDM':
+            Omegam, Omegac, Omegab, H0, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = cosmology(omegam=Omegam, omegac=Omegac, omegab = Omegab, omegar = self.omega_gamma_preset, w = w, Hzero=H0)
+        elif self.model == 'conformal':
+            gamma0, kappa, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            Omegak =  (gamma0)**2 / 2 *cosmology.cLight**2/(70./1E-3)**2#Gpc^-1
+            Omegac = 1-Omegak
+            self.cosmo = cosmology(omegam=0., omegac=Omegac, omegab = Omegab, omegar = self.omega_gamma_preset, Hzero=H0)
+        elif self.model == 'bigravity':
+            log10m, t,  Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = bigravity_cosmology(log10m, t, 1, 1, -1, 1, omegam=Omegam, omegab = Omegab, omegar = self.omega_gamma_preset, Hzero=H0)
+        else: 
+            raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity]'))
+
+            
+
         if 'SN' in self.data_sets.keys():
             self.data_sets['SN'].set_param([a, b, MB, delta_Mhost])
         if 'Quasars' in self.data_sets.keys():
             self.data_sets['Quasars'].set_param([beta_prime, s])
-        if 'BAO' in self.data_sets.keys():
-            self.data_sets['BAO'].set_param(np.array([Omegab, self.omega_gamma_preset]))
         if 'RC' in self.data_sets.keys() and self.model == 'conformal':
             self.data_sets['RC'].set_param([gamma0, kappa])
             self.data_sets['RC'].fit()
@@ -652,9 +784,8 @@ class likelihood:
                 return -np.inf
             
         return log_prob
-    
-    
-    
+
+
     def lnprior_flat(self):
         """Compute a flat prior for the posterior distribution."""
         
@@ -670,10 +801,32 @@ class likelihood:
             if self.params[i] > self.ranges_max[i]:
                 return -np.inf
             
-        return 0
+        return 0    
+    
+    def lnprior_gauss(self):
+        """Compute a prior which is gaussian in Omegab h^2"""
+        if self.model == 'LCDM':
+            Omegab, H0 = self.params[1:3]
+        elif self.model == 'bigravity':
+            Omegab, H0 = self.params[3:5]
+        else:
+            Omegab, H0 = self.params[2:4]
+        h = H0 / 100
+
+        gauss = - (Omegab*h**2 - 0.02235)**2 / (2 * 7.4E-4**2)
+
+        return self.lnprior_flat() + gauss    
+
         
     def logprobability_flat_prior(self):
         lp = self.lnprior_flat()
+        if not np.isfinite(lp):
+            return -np.inf
+        return lp + self.lnlike()
+
+
+    def logprobability_gauss_prior(self):
+        lp = self.lnprior_gauss()
         if not np.isfinite(lp):
             return -np.inf
         return lp + self.lnlike()

@@ -4,21 +4,21 @@ To run the notebook Sample_Cosmo.ipynb, you will need the package emcee (version
 
 1) execute git clone https://github.com/MoPl90/cosmological_tests in your preferred directory
 
-1) conda create -n emcee3 numpy scipy jupyter matplotlib astropy tqdm h5py
+2) conda create -n emcee3 numpy scipy jupyter matplotlib astropy tqdm h5py schwimmbad mpi4py
 
-2) conda activate emcee3
+3) conda activate emcee3
 
-3) conda install -c conda-forge corner
+4) conda install -c conda-forge corner
 
-4) git clone https://github.com/dfm/emcee.git
+5) git clone https://github.com/dfm/emcee.git
 
-5) cd emcee
+6) cd emcee
 
-6) python setup.py install
+7) python setup.py install
 
-7) cd ../cosmological_tests
+8) cd ../cosmological_tests
 
-7) jupyter-notebook Sample_Cosmo.ipynb
+9) jupyter-notebook Sample_Cosmo.ipynb *or* mpirun -np [numebr of prallel processes] python sample.py [data sets to include] [cosmological model]
 
 Now the Code should run!
 
@@ -26,3 +26,7 @@ Now the Code should run!
 The Supernova data is from the Joint Light curve analysis (Betoule et al., arXiv:1401.4064)
 
 Qusar data courtesy of Elisabeta Risaliti; analysis following (Risaliti & Lusso,  arXiv:1505.07118 and arXiv:1811.02590)
+
+BAO data: see publication.
+
+CMB data: Planck legacy archive (https://pla.esac.esa.int/)
