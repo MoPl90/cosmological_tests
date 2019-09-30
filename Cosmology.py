@@ -295,6 +295,26 @@ class bigravity_cosmology(cosmology):
 
             return np.sqrt(hubble_squared + CC_dyn.T*eV**2)
         
+        
+    def log_likelihood(self, dataObject):
+        """
+        This method overrides the cosmology.log_likelihood function, which computes the logarithmic likelihood given a data object. This method uses the bigravity cosmology instead.
+        
+        Input: 
+        dataObject 
+        
+        Output:
+        log likelihood
+        """
+        
+        
+        if not dataObject.name is 'CMB' and np.any(self.Bianchi(dataObject.get_data().T[0]) < 0):
+            return -np.inf
+        else:
+            return super().log_likelihood(dataObject)
+        
+        
+        
 
 class Supernova_data:
     """Objects of this class represent SN data sets. Can be used to calculate the standardized distance modulus for given nuissance parameters (a, b, MB, delta_Mhost). Data must have shape (N,5)."""
@@ -697,6 +717,7 @@ class RC_data:
             if ~np.isnan(res):
                 self.loglike += res
 
+from copy import copy
 
 class likelihood:
     """This class implements a generic likelihood function to pass to a emcee sampler.
@@ -726,15 +747,15 @@ class likelihood:
         
         for sample in data_sets:
             if sample.name == 'SN':
-                self.data_sets['SN'] = sample
+                self.data_sets['SN'] = copy(sample)
             elif sample.name == 'Quasars':
-                self.data_sets['Quasars'] = sample
+                self.data_sets['Quasars'] = copy(sample)
             elif sample.name == 'BAO':
-                self.data_sets['BAO'] = sample
+                self.data_sets['BAO'] = copy(sample)
             elif sample.name == 'CMB':
-                self.data_sets['CMB'] = sample
+                self.data_sets['CMB'] = copy(sample)
             elif sample.name == 'RC' and self.model == 'conformal':
-                self.data_sets['RC'] = sample
+                self.data_sets['RC'] = copy(sample)
                 
 
         if self.model == 'LCDM':
@@ -752,8 +773,8 @@ class likelihood:
             Omegac = 1-Omegak
             self.cosmo = cosmology(omegam=0., omegac=Omegac, omegab = Omegab, omegar = self.omega_gamma_preset, Hzero=H0)
         elif self.model == 'bigravity':
-            log10m, t,  Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = bigravity_cosmology(log10m, t, 1, 1, -1, 1, omegam=Omegam, omegab = Omegab, omegar = self.omega_gamma_preset, Hzero=H0)
+            B0, B1, B2, B3, t,  Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = bigravity_cosmology(-32, t, B0, B1, B2, B3, omegam=Omegam, omegab = Omegab, omegar = self.omega_gamma_preset, Hzero=H0)
         else: 
             raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity]'))
 
