@@ -124,8 +124,8 @@ elif model == 'conformal': #replace Omegam, Omegac -> gamma0, kappa priors
     ranges_max = np.insert(ranges_max, 1, 300) #gamma0 range identical to Omegam
     
 elif model == 'bigravity': #add Bigravity model priors
-    ranges_min = np.append([-30,-30,-30,-30, 0], ranges_min)
-    ranges_max = np.append([30, 30, 30, 30, np.pi/2], ranges_max)
+    ranges_min = np.append([-30,-30,-30,0, 0], ranges_min)
+    ranges_max = np.append([30, 30, 0, 30, np.pi/2], ranges_max)
     
     
 data_sets = []
