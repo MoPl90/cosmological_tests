@@ -152,7 +152,11 @@ class cosmology:
         elif dataObject.name == 'BAO':
             data = dataObject.distance_modulus(self) + dataObject.Hubble(self)
             Cov = dataObject.data_cov(self)
+            if not np.isfinite(self.com_sound_horizon()):
+                return -np.inf
         elif dataObject.name == 'CMB':
+            if not np.isfinite(self.com_sound_horizon()):
+                return -np.inf
             return dataObject.log_likelihood(self)
         
         else:
@@ -242,25 +246,39 @@ class bigravity_cosmology(cosmology):
         y = b(z) / a(z) 
         """ 
         
+        
         x = self.log10mg + 32 # log10(mg/10**-32)
-        b0, b1, b2, b3 = self.betas
+        b0, b1, b2, b3 = self.betas * (10**self.log10mg *eV / self.H0)**2
         
         
-        a0 = - b1 / ( np.tan(self.t) * b3) + 0j
-        a1 = lambda z: (-3*b2 + b0*np.tan(self.t) + (0.140096333403*0.7**2*(1 + z)**3*self.Omegam*(1 + np.tan(self.t)))/10**(2*x))/b3/np.tan(self.t)+0j
-        a2 = (3*b1)/b3 - 3*1/np.tan(self.t)+0j
+        
+        a0 = - b1 / ( np.tan(self.t)**2 * b3) + 0j
+        a1 = lambda z: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegam * (1 + z)**3 + self.Omegar * (1+z)**4 )*(1 + np.tan(self.t)**2))/10**(2*x))/b3/np.tan(self.t)**2+0j
+        a2 = (3*b1)/b3 - 3*1/np.tan(self.t)**2+0j
+        
+        cubic_sol = lambda z: a2/3. - (2**(1/3)*(-12*a0 - a2**2))/(3.*(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)) +  (27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)/(3.*2**(1/3))
+        
+        
         try:
-            x1 = a2/3. - (2**(1/3)*(-12*a0 - a2**2))/(3.*(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)) +  (27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)/(3.*2**(1/3))
+            x1 = cubic_sol(z)
             if np.any(np.imag(x1) > 10**-6 * np.real(x1)):
-                raise RuntimeError
-        except RuntimeError:
-            return -10 * np.ones_like(z)
+                raise ValueError
+        except ValueError:
+            res = np.inf * np.ones_like(z)
         
 
         if np.all(x1 >= a2) and np.all(-a2 - x1 + (2*a1(z))/np.sqrt(-a2 + x1) >= 0.) and np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.) and np.all(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.) and np.all((1/6)*(-8*a2 - (2*2**(1/3)*(12*a0 + a2**2))/(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3) - 2**(2/3)*(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3) + (12*np.sqrt(6)*a1(0))/np.sqrt(-4*a2 + (2*2**(1/3)*(12*a0 + a2**2))/(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3) + 2**(2/3)*(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)))):
-            return np.real(-np.sqrt(-a2 + x1)/2. + np.sqrt(-a2 - x1 + (2*a1(z))/np.sqrt(-a2 + x1))/2.)
+            res = np.real(-np.sqrt(-a2 + x1)/2. + np.sqrt(-a2 - x1 + (2*a1(z))/np.sqrt(-a2 + x1))/2.)
         else: 
-            return -1 * np.ones_like(z)
+            res = -np.inf * np.ones_like(z)
+            
+            
+#         z_max=1E3
+#         if res.shape == () and z > z_max:# np.abs(res) < 1E-8:
+#             res = np.real(-a0/a1(z))
+#         elif not res.shape == ():
+#             res[z > z_max] = np.real(-a0/a1(z[z>z_max]))#np.abs(res) < 1E-8] = 0.
+        return res
         
         
     def H(self, z):
@@ -276,23 +294,17 @@ class bigravity_cosmology(cosmology):
         
         b0, b1, b2, b3 = self.betas 
         y = self.Bianchi(z)
+        if np.any(y == -np.inf):
+            return -np.inf * np.ones_like(z)
         m = 10**self.log10mg
         
-        if isinstance(y, float) or isinstance(y, int):
-            if y<0:
-                return 0.
-            else:
-                CC_dyn = m**2 * np. sin(self.t)**2 * (b0*np.ones_like(y) + 3*b1*y + 3*b2*y**2 + b3*y**3)/3.
-                hubble_squared = self.H0**2 * (self.Omegam * (1+z)**3 )#+ Omegak * (1+z)**2 + Omegac) 
-                
-                return np.sqrt(hubble_squared + CC_dyn*eV**2)
-            
-        if np.any(y<0):
-            return np.zeros_like(z)
-        else:
-            CC_dyn = m**2 * np. sin(self.t)**2 * (b0*np.ones_like(y) + 3*b1*y + 3*b2*y**2 + b3*y**3)/3.
-            hubble_squared = self.H0**2 * (self.Omegam * (1+z)**3 )#+ Omegak * (1+z)**2 + Omegac) 
 
+        CC_dyn = m**2 * np. sin(self.t)**2 * (b0*np.ones_like(y) + 3*b1*y + 3*b2*y**2 + b3*y**3)/3.
+        hubble_squared = self.H0**2 * (self.Omegam * (1+z)**3 )#+ Omegak * (1+z)**2 + Omegac) 
+        
+        if np.any(hubble_squared + CC_dyn.T*eV**2 < 0):
+            return -np.inf * np.ones_like(z)
+        else:
             return np.sqrt(hubble_squared + CC_dyn.T*eV**2)
         
         
@@ -308,7 +320,7 @@ class bigravity_cosmology(cosmology):
         """
         
         
-        if not dataObject.name is 'CMB' and np.any(self.Bianchi(dataObject.get_data().T[0]) < 0):
+        if not np.isfinite(self.Bianchi(0)):
             return -np.inf
         else:
             return super().log_likelihood(dataObject)
