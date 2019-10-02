@@ -7,7 +7,7 @@ import sys
 
 #Parameters for BAO -- CHECK THESE VALUES
 z_d = 1089
-h = .6727
+h = .7
 omega_baryon_preset = 0.022765/h**2
 omega_gamma_preset = 2.469E-5/h**2
 
@@ -124,10 +124,10 @@ elif model == 'conformal': #replace Omegam, Omegac -> gamma0, kappa priors
     ranges_max = np.insert(ranges_max, 1, 300) #gamma0 range identical to Omegam
     
 elif model == 'bigravity': #add Bigravity model priors
-    ranges_min = np.append([-33., 0], ranges_min)
-    ranges_max = np.append([-28., np.pi/2.], ranges_max)
+    ranges_min = np.append([-30,-30,-30,-30, 0], ranges_min)
+    ranges_max = np.append([30, 30, 30, 30, np.pi/2], ranges_max)
     
-
+    
 data_sets = []
 if 'SN' in sys.argv:
     data_sets.append(SNdata)
@@ -145,7 +145,6 @@ def Likelihood(theta):
     return l.logprobability_gauss_prior()
 
 ndim, nwalkers, nsteps = len(ranges_min), 512, 1000
-pos0 = np.random.uniform(ranges_min, ranges_max,(nwalkers,len(ranges_max)))
 
 pool= MPIPool()
 if not pool.is_master():
@@ -161,8 +160,28 @@ for data_sample in sys.argv[1:-1]:
 
 h5chain = HDFBackend('chains/' + name + str(nwalkers) + 'x' + str(nsteps) + '.h5')
 
-sampler = EnsembleSampler(nwalkers, ndim, Likelihood, pool=pool, backend=h5chain)
+try:
+    pos0 = h5chain.get_chain()[-1] #continue existing chains...
+    nsteps -= len(h5chain.get_chain()) #...for missing steps only
+    if nsteps <= 0:
+        raise ValueError("Chain is already complete.")
 
-sampler.run_mcmc(pos0, nsteps)
+    sampler = EnsembleSampler(nwalkers, ndim, Likelihood, pool=pool, backend=h5chain)
 
-pool.close()
+    sampler.run_mcmc(pos0, nsteps)
+    pool.close()
+
+except AttributeError:
+    pos0 = np.random.uniform(ranges_min, ranges_max,(nwalkers,len(ranges_max)))
+
+    sampler = EnsembleSampler(nwalkers, ndim, Likelihood, pool=pool, backend=h5chain)
+
+    sampler.run_mcmc(pos0, nsteps)
+    pool.close()
+except ValueError:
+    pool.close()
+
+
+
+
+
