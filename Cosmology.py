@@ -253,7 +253,10 @@ class bigravity_cosmology(cosmology):
         
         
         a0 = - b1 / ( np.tan(self.t)**2 * b3) + 0j
-        a1 = lambda z: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegam * (1 + z)**3 + self.Omegar * (1+z)**4 )*(1 + np.tan(self.t)**2))/10**(2*x))/b3/np.tan(self.t)**2+0j
+        if not self.Omegar is None:
+            a1 = lambda z: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegam * (1 + z)**3 + self.Omegar * (1+z)**4 )*(1 + np.tan(self.t)**2))/10**(2*x))/b3/np.tan(self.t)**2+0j
+        else:
+            a1 = lambda z: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegam * (1 + z)**3)*(1 + np.tan(self.t)**2))/10**(2*x))/b3/np.tan(self.t)**2+0j
         a2 = (3*b1)/b3 - 3*1/np.tan(self.t)**2+0j
         
         cubic_sol = lambda z: a2/3. - (2**(1/3)*(-12*a0 - a2**2))/(3.*(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)) +  (27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)/(3.*2**(1/3))
@@ -321,6 +324,8 @@ class bigravity_cosmology(cosmology):
         
         
         if not np.isfinite(self.Bianchi(0)):
+            return -np.inf
+        if not np.isfinite(self.Bianchi(1089)):
             return -np.inf
         else:
             return super().log_likelihood(dataObject)
