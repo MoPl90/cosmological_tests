@@ -105,7 +105,7 @@ CMBdata = CMB_data('Planck18')
 
 model = sys.argv[-1]
 
-if not model in ['LCDM', 'oLCDM', 'wLCDM', 'conformal', 'bigravity']:
+if not model in ['LCDM', 'oLCDM', 'wLCDM', 'conformal', 'bigravity', 'obigravity']:
     raise(NameError('Specify a cosmological model as the last argument.'))
 
 ranges_min = np.array([0, 0, 60., -5, -10, -30, -.5, 0, 0]) #Omegam, Omegab, H0, alpha, beta, MB, delda_M, beta_prime, s
@@ -124,9 +124,15 @@ elif model == 'conformal': #replace Omegam, Omegac -> gamma0, kappa priors
     ranges_max = np.insert(ranges_max, 1, 300) #gamma0 range identical to Omegam
     
 elif model == 'bigravity': #add Bigravity model priors
-    ranges_min = np.append([-30,-30,-30,0, 0], ranges_min)
-    ranges_max = np.append([30, 30, 0, 30, np.pi/2], ranges_max)
+    ranges_min = np.append([-3, -3, 0, 0], ranges_min)
+    ranges_max = np.append([3, 3, 3, np.pi/2], ranges_max)
     
+    
+elif model == 'obigravity': #add Bigravity model priors and Omagc
+    ranges_min = np.insert(ranges_min, 1, 0)
+    ranges_max = np.insert(ranges_max, 1, 1.5)
+    ranges_min = np.append([-3, -3, 0, 0], ranges_min)
+    ranges_max = np.append([3, 3, 3, np.pi/2], ranges_max)
     
 data_sets = []
 if 'SN' in sys.argv:
