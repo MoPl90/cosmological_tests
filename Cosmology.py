@@ -775,7 +775,7 @@ class RC_data:
             (YD, YB), _ = curve_fit(model_vSquared, galaxy[:,0], galaxy[:,1]**2, sigma=galaxy[:,2]**2, p0=[1,1], bounds = (0,5))
 
                 
-            res= -.5 * np.sum( (galaxy[:,1]**2 - model_vSquared(galaxy[:,0], YD, YB))**2 / galaxy[:,2]**2)
+            res= -.5 * np.sum( (galaxy[:,1] - model_vSquared(galaxy[:,0], YD, YB)**.5)**2 / galaxy[:,2]**2)
             if ~np.isnan(res):
                 self.loglike += res
 
