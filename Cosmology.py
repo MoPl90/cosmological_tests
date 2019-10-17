@@ -20,8 +20,10 @@ class cosmology:
         self.r_sound = rs
         self.Omegac = omegac #dark energy density
         self.Omegam = omegam #non-relativistic matter energy density
-        self.Omegar = omegar #relativistic matter energy density
+        self.Omegar = omegar #relativistic matter energy density 
         self.Omegab = omegab
+        if not self.Omegar is None:
+            self.Omegar *= (1 + 7/8 * (4/11)**(4/3) * 3.046) #including neutrinos
         
         self.Omegak = 1 - self.Omegam - self.Omegac if self.Omegar is None else 1 - self.Omegam - self.Omegac - self.Omegar #curvature energy density
         
@@ -47,7 +49,7 @@ class cosmology:
         if not omegac is None:
             self.Omegac = omegac #dark energy density
         if not omegar is None:
-            self.Omegar = omegar #relativistic matter energy density
+            self.Omegar = omegar * (1 + 7/8 * (4/11)**(4/3) * 3.046) #relativistic matter energy density
         if not omegab is None:
             self.Omegab = omegab #baryonic matter energy density
         
@@ -72,7 +74,7 @@ class cosmology:
         if self.Omegar is None or self.Omegab is None:
             raise(ValueError('To compute a speed of sound, set Omega_r and Omega_b to numerical values first.'))
         else:
-            photon_density =  self.Omegar / (1+ 7/8 * (4/11)**(4/3) * 3.046)  
+            photon_density =  self.Omegar / (1 + 7/8 * (4/11)**(4/3) * 3.046)  
             soundspeed = self.cLight/np.sqrt(3*(1+3/4*self.Omegab/photon_density /(1+z)))  
         
         return soundspeed
@@ -83,10 +85,10 @@ class cosmology:
         if self.Omegar is None or self.Omegab is None:
             rs = self.r_sound
         else:
-            self.Omegar *= 1 + 7/8 * (4/11)**(4/3) * 3.046 
+            #self.Omegar *= 1 + 7/8 * (4/11)**(4/3) * 3.046 
             rs = integrate.quad(lambda z:self.sound_speed(z,m_nu)/(self.H(z)),z_d,np.inf)[0]
             self.r_sound = rs
-            self.Omegar /= 1+ 7/8 * (4/11)**(4/3) * 3.046 
+            #self.Omegar /= 1 + 7/8 * (4/11)**(4/3) * 3.046 
         return rs
     
     def rd(self, m_nu = 0.06): 
@@ -641,12 +643,10 @@ class BAO_data:
 
 class CMB_data:
     """Objects of this class represent simplified CMB measurements."""
-    # Ref.: 1411.1074
-    C_Planck18 = np.array([[2.8714501E-08, -1.8525566E-07, 2.5062628E-08],
-                           [-1.8525566E-07, 2.5811906E-06, -2.3468816E-07],
-                           [2.5062628E-08, -2.3468816E-07, 1.0694029E-07]])
-    mu_Planck18 = np.array([2.2531710E-02, 1.1862903E-01, 1.0410763E+00])# Omega_b, Omega_m - Omega_b, 100 rd / DM!!!!!!!!!!!!!!!!!!!!
-
+    C_Planck18 = np.array([[2.1238517E-08, -9.0296572E-08, 1.7632299E-08],
+                           [-9.0296572E-08, 1.3879427E-06, -1.2602979E-07],
+                           [1.7632299E-08, -1.2602979E-07, 9.7141363E-08]])
+    mu_Planck18 = np.array([2.2287960E-02, 1.2116800E-01, 1.0407000E+00])# Omega_b, Omega_m - Omega_b, 100 rd / DM!!!!!!!!!!!!!!!!!!!!
     
     C_Planck13 = 1E-7 * np.array([[1.286,-6.033, -144.3],
                                   [-6.033, 75.42, -360.5],
@@ -818,7 +818,7 @@ class likelihood:
                 self.data_sets['CMB'] = copy(sample)
             elif sample.name == 'RC' and self.model == 'conformal':
                 self.data_sets['RC'] = copy(sample)
-
+                
 
         if self.model == 'LCDM':
             Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
@@ -911,7 +911,7 @@ class likelihood:
 
         gauss = - (Omegab*h**2 - 0.02235)**2 / (2 * 7.4E-4**2)
 
-        return self.lnprior_flat() + gauss    
+        return self.lnprior_flat() + gauss 
 
         
     def logprobability_flat_prior(self):
