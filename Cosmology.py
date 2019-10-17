@@ -242,23 +242,34 @@ class bigravity_cosmology(cosmology):
         y = b(z) / a(z) 
         """ 
         
-        x = self.log10mg + 32 # log10(mg/10**-32)
+        x = self.log10mg + 33 # log10(mg/10**-32)
         b0, b1, b2, b3 = self.betas
         
         
-        a0 = - b1 / ( np.tan(self.t) * b3) + 0j
-        a1 = lambda z: (-3*b2 + b0*np.tan(self.t) + (0.140096333403*0.7**2*(1 + z)**3*self.Omegam*(1 + np.tan(self.t)))/10**(2*x))/b3/np.tan(self.t)+0j
-        a2 = (3*b1)/b3 - 3*1/np.tan(self.t)+0j
+        a0 = - b1 / ( np.tan(self.t)**2 * b3) + 0j
+        a1 = lambda z: (-3*b2 + b0*np.tan(self.t)**2 + (0.140096333403*0.7**2*(1 + z)**3*self.Omegam*(1 + np.tan(self.t)**2))/10**(2*x))/b3/np.tan(self.t)**2+0j
+        a2 = (3*b1)/b3 - 3*1/np.tan(self.t)**2+0j
         try:
-            x1 = a2/3. - (2**(1/3)*(-12*a0 - a2**2))/(3.*(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)) +  (27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)/(3.*2**(1/3))
-            if np.any(np.imag(x1) > 10**-6 * np.real(x1)):
+            x1 = lambda z: a2/3. - (2**(1/3)*(-12*a0 - a2**2))/(3.*(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)) +  (27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)/(3.*2**(1/3))
+            if np.any(np.imag(x1(z)) > 10**-6 * np.real(x1(z))):
                 raise RuntimeError
         except RuntimeError:
             return -10 * np.ones_like(z)
         
-
-        if np.all(x1 >= a2) and np.all(-a2 - x1 + (2*a1(z))/np.sqrt(-a2 + x1) >= 0.) and np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.) and np.all(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.) and np.all((1/6)*(-8*a2 - (2*2**(1/3)*(12*a0 + a2**2))/(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3) - 2**(2/3)*(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3) + (12*np.sqrt(6)*a1(0))/np.sqrt(-4*a2 + (2*2**(1/3)*(12*a0 + a2**2))/(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3) + 2**(2/3)*(27*a1(0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)))):
-            return np.real(-np.sqrt(-a2 + x1)/2. + np.sqrt(-a2 - x1 + (2*a1(z))/np.sqrt(-a2 + x1))/2.)
+        # checks to avoid imaginary y:
+        # first, condition from R real (see defintion in quartic/MathWorld)
+        # second, sqrt in remaining cubic sol needs to be real
+        # third, third root in remaining cubic sol needs to be real
+        # lastly, 
+        if np.all(x1(z) >= a2) and np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.) and np.all(27*a1(z)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.):
+            # for a1 -> infty as z->infty, the third solution (E) is selected. Check that the sqrts are real, that the solution is real for z=0, and that y>0: (Note that the last condition also gives a final check if y is real)
+            if np.all(a1(z) >= 0) and np.all(-a2 - x1(z) + (2*a1(z))/np.sqrt(-a2 + x1(z)) >= 0.) and np.all(-a2 - x1(0) + (2*a1(0))/np.sqrt(-a2 + x1(0)) >= 0.) and np.all(-np.sqrt(-a2 + x1(z))/2. + np.sqrt(-a2 - x1(z) + (2*a1(z))/np.sqrt(-a2 + x1(z)))/2. >= 0):
+                return np.real(-np.sqrt(-a2 + x1(z))/2. + np.sqrt(-a2 - x1(z) + (2*a1(z))/np.sqrt(-a2 + x1(z)))/2.)
+            # same for a1 -> - infty as z->infty. Now, the second solution (D) is selected.
+            elif np.all(a1(z) <= 0) and np.all(-a2 - x1(z) - (2*a1(z))/np.sqrt(-a2 + x1(z)) >= 0.) and np.all(-a2 - x1(0) - (2*a1(0))/np.sqrt(-a2 + x1(0)) >= 0.) and np.all(np.sqrt(-a2 + x1(z))/2. - np.sqrt(-a2 - x1(z) - (2*a1(z))/np.sqrt(-a2 + x1(z)))/2. >= 0):
+                return np.real(np.sqrt(-a2 + x1(z))/2. - np.sqrt(-a2 - x1(z) - (2*a1(z))/np.sqrt(-a2 + x1(z)))/2.)
+            else: 
+                return -1 * np.ones_like(z)
         else: 
             return -1 * np.ones_like(z)
         
