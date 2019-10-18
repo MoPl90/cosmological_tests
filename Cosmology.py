@@ -233,7 +233,8 @@ class bigravity_cosmology(cosmology):
         super().__init__(omegam, 0, omegar, w=-1, Hzero=Hzero)
 
         return self
-
+    
+    
     def Bianchi(self, z): 
         """
         This is Kevin's exact solution to the Bianchi-/Master-Equation of bigravity cosmology.
