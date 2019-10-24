@@ -120,8 +120,8 @@ if model == 'wLCDM': #insert w prior
     ranges_max = np.insert(ranges_max, -6, -1/3.)
 
 elif model == 'conformal': #replace Omegam, Omegac -> gamma0, kappa priors
-    ranges_min = np.insert(ranges_min, 1, 50) #gamma0 range identical to Omegam
-    ranges_max = np.insert(ranges_max, 1, 300) #gamma0 range identical to Omegam
+    ranges_min = np.insert(ranges_min, 1, 0) #gamma0 range identical to Omegam
+    ranges_max = np.insert(ranges_max, 1, 100) #gamma0 range identical to Omegam
     
 elif model == 'bigravity': #add Bigravity model priors
     ranges_min = np.append([-3, -3, 0, 0], ranges_min)

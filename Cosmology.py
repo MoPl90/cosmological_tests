@@ -778,8 +778,11 @@ class RC_data:
 
                 
             res= -.5 * np.sum( (galaxy[:,1] - model_vSquared(galaxy[:,0], YD, YB)**.5)**2 / galaxy[:,2]**2)
-            if ~np.isnan(res):
+            if not np.isnan(res):
                 self.loglike += res
+            else: 
+                self.loglike += -np.inf
+                
 
 from copy import copy
 
