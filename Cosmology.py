@@ -6,7 +6,8 @@ from scipy.optimize import curve_fit, fsolve
 from scipy.interpolate import interp1d
 from scipy.special import i0, i1, k0, k1
 
-eV = 7.461E33#km/s/Mpc
+#eV = 7.461E33#km/s/Mpc
+eV = 4.6282E34#km/s/Mpc
 
 
 class cosmology:
@@ -250,24 +251,39 @@ class bigravity_cosmology(cosmology):
         b1, b2, b3 = self.betas * (10**self.log10mg * eV / self.H0)**2
         
         
-        
         a0 = - b1 / ( np.tan(self.t)**2 * b3) + 0j
         if not self.Omegar is None:
-            a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegar * (1+z)**4 + self.Omegam * (1 + z)**3 + self.Omegak * (1 + z)**2 + self.Omegac)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
+            #a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegar * (1+z)**4 + self.Omegam * (1 + z)**3 + self.Omegak * (1 + z)**2 + self.Omegac)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
+            # a1 should only contain rad and mat components of densities: (KMA)
+            a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegar * (1+z)**4 + self.Omegam * (1 + z)**3)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
         else:
-            a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegam * (1 + z)**3 + self.Omegak * (1 + z)**2 + self.Omegac)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
+            #a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegam * (1 + z)**3 + self.Omegak * (1 + z)**2 + self.Omegac)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
+            # a1 should only contain rad and mat components of densities: (KMA)
+            #a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegam * (1 + z)**3)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
+            #TESTING
+            a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegam * (1 + z)**3)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
         a2 = (3*b1)/b3 - 3*1/np.tan(self.t)**2+0j
         
-        cubic_sol = lambda z, b0: a2/3. - (2**(1/3)*(-12*a0 - a2**2))/(3.*(27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)) +  (27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)/(3.*2**(1/3))
+        cubic_sol = lambda z, b0: a2/3 - (2**(1/3)*(-12*a0 - a2**2))/(3*(27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)) + (27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)/(3.*2**(1/3))
         
+        # We fix b0 by demanding the CC == 0 for stationary y0 (y at z=0). This depends on the correct y-sol (D-case or E-case:), so we calculate y0 in both cases.
         
-        y0 = fsolve(lambda y0: y0 - np.real(-np.sqrt(-a2 + cubic_sol(0., -3 * b1 * y0 - 3 * b2 * y0**2 - b3 * y0**3))/2. + np.sqrt(-a2 - cubic_sol(0., -3 * b1 * y0 - 3 * b2 * y0**2 - b3 * y0**3) + (2*a1(0,-3*b1*y0 - 3*b2*y0**2 - b3*y0**3))/np.sqrt(-a2 + cubic_sol(0., -3 * b1 * y0 - 3 * b2 * y0**2 - b3 * y0**3)))/2.), 1.)[0]
-            
-        b0 = -3 * b1 * y0 - 3 * b2 * y0**2 - b3 * y0**3
-
+        # This finds the stationary y0 (y at z=0) for the E-solution:
+        # KMA: Corrected signs (was: y0 - R/2 + E/2 == 0. Is now: y0 + R/2 - E/2 == 0.) Please Check.
+        y0e = fsolve(lambda y0: y0 + np.real(-np.sqrt(-a2 + cubic_sol(0., -3 * b1 * y0 - 3 * b2 * y0**2 - b3 * y0**3))/2. - np.sqrt(-a2 - cubic_sol(0., -3 * b1 * y0 - 3 * b2 * y0**2 - b3 * y0**3) + (2*a1(0,-3*b1*y0 - 3*b2*y0**2 - b3*y0**3))/np.sqrt(-a2 + cubic_sol(0., -3 * b1 * y0 - 3 * b2 * y0**2 - b3 * y0**3)))/2.), 1.)[0]
+        # This finds the stationary y0 (y at z=0) for the D-solution:
+        y0d = fsolve(lambda y0: y0 - np.real(-np.sqrt(-a2 + cubic_sol(0., -3 * b1 * y0 - 3 * b2 * y0**2 - b3 * y0**3))/2. + np.sqrt(-a2 - cubic_sol(0., -3 * b1 * y0 - 3 * b2 * y0**2 - b3 * y0**3) - (2*a1(0,-3*b1*y0 - 3*b2*y0**2 - b3*y0**3))/np.sqrt(-a2 + cubic_sol(0., -3 * b1 * y0 - 3 * b2 * y0**2 - b3 * y0**3)))/2.), 1.)[0]
+                
+        b0e = -3 * b1 * y0e - 3 * b2 * y0e**2 - b3 * y0e**3
+        b0d = -3 * b1 * y0d - 3 * b2 * y0d**2 - b3 * y0d**3
+                
         try:
-            x1 = cubic_sol(z, b0)
-            if np.any(np.imag(x1) > 10**-6 * np.real(x1)):
+            x1e = cubic_sol(z, b0e)
+            x1d = cubic_sol(z, b0d)
+            # These line seems to be problematic, because it aborts if x1 is negative.
+            #if np.any(np.imag(x1) > 10**-6 * np.real(x1)):
+            # I've added an abs on both sides (KMA). Also, the check needs to be done such that *at least one* cubicsol is real:
+            if np.any(np.abs(np.imag(x1e)) > np.abs(10**-6 * np.real(x1e))) or np.any(np.abs(np.imag(x1d)) > np.abs(10**-6 * np.real(x1d))):
                 raise ValueError
         except ValueError:
             return np.zeros_like(z)
@@ -276,16 +292,21 @@ class bigravity_cosmology(cosmology):
                    
 #             return np.real(-np.sqrt(-a2 + x1)/2. + np.sqrt(-a2 - x1 + (2*a1(z,-3*b1*y0 - 3*b2*y0**2 - b3*y0**3))/np.sqrt(-a2 + x1))/2.)
 
+ 
 
-
-        if np.all(x1 >= a2) and np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.) and np.all(27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.):
+        if (np.all(x1e >= a2) or np.all(x1d >= a2)) and (np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0e)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.) or  np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0d)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.)) and (np.all(27*a1(z,b0e)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0e)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.) or np.all(27*a1(z,b0d)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0d)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.)):
             # for a1 -> infty as z->infty, the third solution (E) is selected. Check that the sqrts are real, that the solution is real for z=0, and that y>0: (Note that the last condition also gives a final check if y is real)
-            if np.all(a1(z,b0) >= 0) and np.all(-a2 - x1 + (2*a1(z,b0))/np.sqrt(-a2 + x1) >= 0.) and np.all(-a2 - cubic_sol(0,b0) + (2*a1(0,b0))/np.sqrt(-a2 + cubic_sol(0,b0)) >= 0.) and np.all(-np.sqrt(-a2 + x1)/2. + np.sqrt(-a2 - x1 + (2*a1(z,b0))/np.sqrt(-a2 + x1))/2. >= 0):
-                return np.real(-np.sqrt(-a2 + x1)/2. + np.sqrt(-a2 - x1 + (2*a1(z,b0))/np.sqrt(-a2 + x1))/2.)
+            if np.all(a1(z,b0e) >= 0) and np.all(-a2 - x1e + (2*a1(z,b0e))/np.sqrt(-a2 + x1e) >= 0.) and np.all(-a2 - cubic_sol(0,b0e) + (2*a1(0,b0e))/np.sqrt(-a2 + cubic_sol(0,b0e)) >= 0.) and np.all(-np.sqrt(-a2 + x1e)/2. + np.sqrt(-a2 - x1e + (2*a1(z,b0e))/np.sqrt(-a2 + x1e))/2. >= 0):
+                #print(b0e)
+                #print('e-sol selected')
+                return np.real(-np.sqrt(-a2 + x1e)/2. + np.sqrt(-a2 - x1e + (2*a1(z,b0e))/np.sqrt(-a2 + x1e))/2.)
             # same for a1 -> - infty as z->infty. Now, the second solution (D) is selected.
-            elif np.all(a1(z,b0) <= 0) and np.all(-a2 - x1 - (2*a1(z,b0))/np.sqrt(-a2 + x1) >= 0.) and np.all(-a2 - cubic_sol(0,b0) - (2*a1(0,b0))/np.sqrt(-a2 + cubic_sol(0,b0)) >= 0.) and np.all(np.sqrt(-a2 + x1)/2. - np.sqrt(-a2 - x1 - (2*a1(z,b0))/np.sqrt(-a2 + x1))/2. >= 0):
-                return np.real(np.sqrt(-a2 + x1)/2. - np.sqrt(-a2 - x1 - (2*a1(z,b0))/np.sqrt(-a2 + x1))/2.)
-            else: 
+            elif np.all(a1(z,b0d) <= 0) and np.all(-a2 - x1d - (2*a1(z,b0d))/np.sqrt(-a2 + x1d) >= 0.) and np.all(-a2 - cubic_sol(0,b0d) - (2*a1(0,b0d))/np.sqrt(-a2 + cubic_sol(0,b0d)) >= 0.) and np.all(np.sqrt(-a2 + x1d)/2. - np.sqrt(-a2 - x1d - (2*a1(z,b0d))/np.sqrt(-a2 + x1d))/2. >= 0):
+                #print(b0d)
+                #print('d-sol selected')
+                return np.real(np.sqrt(-a2 + x1d)/2. - np.sqrt(-a2 - x1d - (2*a1(z,b0d))/np.sqrt(-a2 + x1d))/2.)
+            else:
+                #print('e, d-sol NOT selected')
                 return np.zeros_like(z)
         else: 
             return np.zeros_like(z)
