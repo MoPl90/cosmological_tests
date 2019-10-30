@@ -292,7 +292,8 @@ class bigravity_cosmology(cosmology):
                    
 #             return np.real(-np.sqrt(-a2 + x1)/2. + np.sqrt(-a2 - x1 + (2*a1(z,-3*b1*y0 - 3*b2*y0**2 - b3*y0**3))/np.sqrt(-a2 + x1))/2.)
 
- 
+        #print('b0d =',b0d)
+        #print('b0e =',b0e)
 
         if (np.all(x1e >= a2) or np.all(x1d >= a2)) and (np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0e)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.) or  np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0d)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.)) and (np.all(27*a1(z,b0e)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0e)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.) or np.all(27*a1(z,b0d)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0d)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.)):
             # for a1 -> infty as z->infty, the third solution (E) is selected. Check that the sqrts are real, that the solution is real for z=0, and that y>0: (Note that the last condition also gives a final check if y is real)
