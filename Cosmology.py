@@ -247,21 +247,18 @@ class bigravity_cosmology(cosmology):
         y = b(z) / a(z) 
         """ 
         
-        
         b1, b2, b3 = self.betas * (10**self.log10mg * eV / self.H0)**2
         
         
         a0 = - b1 / ( np.tan(self.t)**2 * b3) + 0j
         if not self.Omegar is None:
             #a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegar * (1+z)**4 + self.Omegam * (1 + z)**3 + self.Omegak * (1 + z)**2 + self.Omegac)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
-            # a1 should only contain rad and mat components of densities: (KMA)
-            a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegar * (1+z)**4 + self.Omegam * (1 + z)**3)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
+            # a1 should only contain CC, rad and mat components of densities: (KMA)
+            a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegar * (1+z)**4 + self.Omegam * (1 + z)**3 + self.Omegac)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
         else:
             #a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegam * (1 + z)**3 + self.Omegak * (1 + z)**2 + self.Omegac)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
-            # a1 should only contain rad and mat components of densities: (KMA)
-            #a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegam * (1 + z)**3)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
-            #TESTING
-            a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegam * (1 + z)**3)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
+            # a1 should only contain CC, rad and mat components of densities: (KMA)
+            a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegam * (1 + z)**3 + self.Omegac)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
         a2 = (3*b1)/b3 - 3*1/np.tan(self.t)**2+0j
         
         cubic_sol = lambda z, b0: a2/3 - (2**(1/3)*(-12*a0 - a2**2))/(3*(27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)) + (27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)/(3.*2**(1/3))
@@ -276,6 +273,8 @@ class bigravity_cosmology(cosmology):
                 
         b0e = -3 * b1 * y0e - 3 * b2 * y0e**2 - b3 * y0e**3
         b0d = -3 * b1 * y0d - 3 * b2 * y0d**2 - b3 * y0d**3
+                
+
                 
         try:
             x1e = cubic_sol(z, b0e)
