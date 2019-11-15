@@ -5,16 +5,18 @@ from schwimmbad import MPIPool
 from Cosmology import *
 import sys
 
+#KMA 15 Nov 19: updated parameters in correspondence with current jupyter nb
+
 #Parameters for BAO -- CHECK THESE VALUES
 z_d = 1089
-h = .7
-omega_baryon_preset = 0.022765/h**2
+h = .6727
+omega_baryon_preset = 0.02236/h**2
 omega_gamma_preset = 2.469E-5/h**2
 
 #Cosmological parameters
-Omega_m_preset = 0.3089
-Omega_r_preset = 2.469E-5/h**2
-Omega_c_preset = 0.6911
+Omega_m_preset = 0.3166
+Omega_r_preset = 2.469E-5/h**2 # this is the photon density
+Omega_c_preset = 0.6834
 
 
 #SN data
