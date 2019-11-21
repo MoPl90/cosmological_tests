@@ -952,3 +952,11 @@ class likelihood:
         if not np.isfinite(lp):
             return -np.inf
         return lp + self.lnlike()
+
+
+
+# Additional code used to run the jupyter notebook:
+
+def calcdellist(chain):
+    #calculate dellist for each chain. Dellist: number of MCMC walkers which have not moved from initial position and thus need to be deleted.
+        return np.unique(np.where(np.isclose(chain.get_chain()[-1] - chain.get_chain()[0], 0))[0])
