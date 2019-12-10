@@ -272,6 +272,32 @@ class bigravity_cosmology(cosmology):
          
         return mg
     
+    def del_graviton_mass(self,omegac,delH0,delb1,delb2,delb3):
+        #Calculates the error:
+        
+        b1, b2, b3 = self.betas * (10**self.log10mg * eV / self.H0)**2
+        
+        b4 = 3*b2*np.tan(self.t)**2
+
+        ystar = np.roots([b4*np.cos(self.t)**2,
+                          3*b3*np.cos(self.t)**2,
+                          -3*omegac+3*b2*np.cos(self.t)**2,
+                          b1*np.cos(self.t)**2])
+        # accept only real roots:
+        ystar = ystar.real[abs(ystar.imag)<1e-8][0]
+        
+        
+        mg = np.sqrt(ystar*(b1+2*ystar*b2+ystar**2*b3))*10**self.log10mg
+        #calculate error of mg: (use 1/eV to compensate mass units of H0).
+        #We do not propagate the error into ystar, as it does not increase the margins significantly
+        delmg = np.sqrt((mg*delH0/self.H0)**2
+                        + (ystar*self.H0**2/eV**2*delb1/(2*mg))**2
+                        + (2*ystar**2*self.H0**2/eV**2*delb2/(2*mg))**2
+                        + (ystar**3*self.H0**2/eV**2*delb3/(2*mg))**2 )
+
+         
+        return delmg
+    
     
     def Bianchi(self, z): 
         """
