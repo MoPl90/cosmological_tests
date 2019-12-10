@@ -235,6 +235,69 @@ class bigravity_cosmology(cosmology):
 
         return self
     
+    def graviton_mass(self,omegac):
+        #Calculates the physical graviton mass using B1, B2, B3 and y0:
+        
+        b1, b2, b3 = self.betas * (10**self.log10mg * eV / self.H0)**2
+        
+
+        #b4 is determined from a3=0
+        b4 = 3*b2*np.tan(self.t)**2
+
+        #ystar is determined by master-eq, plugging in b0 as defined by the dynamical CC-equation:
+        ystar = np.roots([b4*np.cos(self.t)**2,
+                          3*b3*np.cos(self.t)**2,
+                          -3*omegac+3*b2*np.cos(self.t)**2,
+                          b1*np.cos(self.t)**2])
+        # accept only real roots:
+        ystar = ystar.real[abs(ystar.imag)<1e-8][0]
+        
+        #ystar = np.roots([-b3*np.sin(self.t)**2,
+        #                  (b4*np.cos(self.t)**2-3*b2*np.sin(self.t)**2),
+        #                  (3*b3*np.cos(self.t)**2-3*b1*np.sin(self.t)**2),
+        #                  (3*b2*np.cos(self.t)**2-b0*np.sin(self.t)**2),
+        #                  b1*np.cos(self.t)**2])
+        #np.roots(b1*np.cos(self.t)**2/ystar 
+        #         + (3*b2*np.cos(self.t)**2-b0*np.sin(self.t)**2) 
+        #         + (3*b3*np.cos(self.t)**2-3*b1*np.sin(self.t)**2)*ystar  
+        #         + (b4*np.cos(self.t)**2-3*b2*np.sin(self.t)**2)*ystar**2
+        #         - b3*np.sin(self.t)**2*ystar**3 )
+        #print(b1,b2,b3)
+        #print(self.t)
+        #print(ystar)
+        #print(self.log10mg)
+        
+        mg = np.sqrt(ystar*(b1+2*ystar*b2+ystar**2*b3))*10**self.log10mg
+
+         
+        return mg
+    
+    def del_graviton_mass(self,omegac,delH0,delb1,delb2,delb3):
+        #Calculates the error:
+        
+        b1, b2, b3 = self.betas * (10**self.log10mg * eV / self.H0)**2
+        
+        b4 = 3*b2*np.tan(self.t)**2
+
+        ystar = np.roots([b4*np.cos(self.t)**2,
+                          3*b3*np.cos(self.t)**2,
+                          -3*omegac+3*b2*np.cos(self.t)**2,
+                          b1*np.cos(self.t)**2])
+        # accept only real roots:
+        ystar = ystar.real[abs(ystar.imag)<1e-8][0]
+        
+        
+        mg = np.sqrt(ystar*(b1+2*ystar*b2+ystar**2*b3))*10**self.log10mg
+        #calculate error of mg: (use 1/eV to compensate mass units of H0).
+        #We do not propagate the error into ystar, as it does not increase the margins significantly
+        delmg = np.sqrt((mg*delH0/self.H0)**2
+                        + (ystar*self.H0**2/eV**2*delb1/(2*mg))**2
+                        + (2*ystar**2*self.H0**2/eV**2*delb2/(2*mg))**2
+                        + (ystar**3*self.H0**2/eV**2*delb3/(2*mg))**2 )
+
+         
+        return delmg
+    
     
     def Bianchi(self, z): 
         """
@@ -325,14 +388,15 @@ class bigravity_cosmology(cosmology):
         Hubble rate H(z)
         """
         
-        b1, b2, b3 = self.betas 
+        bt1, bt2, bt3 = self.betas 
         y = self.Bianchi(z)
         y0 = self.Bianchi(0.)
-        b0 = -3*b1*y0 - 3*b2*y0**2 - b3*y0**3
+        #as we also incorporate a fit parameter omegac, we set b0 such that the dynamical CC is zero at y0:
+        b0 = -3*bt1*y0 - 3*bt2*y0**2 - bt3*y0**3
         m = 10**self.log10mg
         
-
-        CC_dyn = m**2 * np.sin(self.t)**2 * (b0*np.ones_like(y) + 3*b1*y + 3*b2*y**2 + b3*y**3)/3.
+        #after subtracting the constant part, the dynamical part of the CC contributes to H as Lambda/3:
+        CC_dyn = m**2 * np.sin(self.t)**2 * (b0*np.ones_like(y) + 3*bt1*y + 3*bt2*y**2 + bt3*y**3)/3.
         
         if not self.Omegar is None:
             hubble_squared = self.H0**2 * (self.Omegar * (1+z)**4 + self.Omegam * (1+z)**3 + self.Omegak * (1 + z)**2 + self.Omegac)
