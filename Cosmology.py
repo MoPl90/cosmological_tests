@@ -659,7 +659,7 @@ class BAO_data:
                 lumiDist =  (1 + z[line]) * (meas[line]/100)**(3/2) * (cosmo.H(z[line]))**(1/2) *self.cLight*z[line]/(cosmo.Omegam*(cosmo.H0/100)**2)**(3/4)
                 DMpairs[line] =  ( z[line], 5*(np.log10(lumiDist) + 5) )
                     
-            elif dtype[line] == 'H*rdfid/rd' or dtype[line] == 'DH/rd':
+            elif dtype[line] == 'H*rd/rdfid' or dtype[line] == 'DH/rd':
                 continue
                 
             else:
