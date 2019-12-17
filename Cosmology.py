@@ -16,7 +16,7 @@ class cosmology:
     cLight = 3E5 # speed of light in km/s
     #H0 = 70. #the present day Hubble rate in km/s/Mps
     
-    def __init__(self, omegam, omegac, rs = 147.27, omegar=None, omegab = None, w=-1, Hzero=70):
+    def __init__(self, omegam, omegac, rs = 147.78, omegar=None, omegab = None, w=-1, Hzero=70):
         """Initialise a cosmological model"""
         self.r_sound = rs
         self.Omegac = omegac #dark energy density
@@ -203,7 +203,7 @@ class cosmology:
 class bigravity_cosmology(cosmology):
     """This class inherits from the cosmology base class and implements a bigravity cosmology."""
 
-    def __init__(self, log10m, theta, b1, b2, b3, omegam, omegac, rs=147.27, omegar=None, omegab=None, Hzero=70.):
+    def __init__(self, log10m, theta, b1, b2, b3, omegam, omegac, rs=147.78, omegar=None, omegab=None, Hzero=70.):
         super().__init__(omegam, omegac=omegac, rs=rs, omegar=omegar, omegab=omegab, w=-1, Hzero=Hzero)
         self.log10mg = log10m
         self.t = theta
@@ -676,10 +676,11 @@ class BAO_data:
         Hpairs = np.zeros([len(dtype), 2])
         z_d = self.z_d
         rd = cosmo.com_sound_horizon()
+        rd_fid = 147.78
         
         for line in range(0,len(dtype)): 
-            if dtype[line] == 'H*rdfid/rd':
-                H = meas[line]
+            if dtype[line] == 'H*rd/rdfid':
+                H = meas[line]*rd_fid/rd
                 Hpairs[line] = (z[line], H)
                     
             elif dtype[line] == 'DH/rd':
@@ -712,7 +713,7 @@ class BAO_data:
                 elif dtype[i]==dtype[j]=='rd/DV' or dtype[i]==dtype[j]=='DV*rd_fid/rd' or dtype[i]==dtype[j]=='DV/rd' or dtype[i]==dtype[j]=='A':
                     covDM[i,j] =  (5*3/2/meas[i]) * self.err[i,j] *  (5*3/2/meas[j])
                 
-                elif dtype[i]==dtype[j]=='H*rdfid/rd':
+                elif dtype[i]==dtype[j]=='H*rd/rdfid':
                     covDM[i,j] = self.err[i,j] 
                 elif dtype[i]==dtype[j]=='DH/rd':
                     covDM[i,j] = self.err[i,j] / meas[i] / meas[j] * self.cLight / rd
