@@ -1,3 +1,4 @@
+# Quasar data set provided bei Risaliti & Lusso, Nature Astronomy, 2018. See also companion publication
 # xz       xlo        xlx        xfo        xfx         xefx      namex               
   0.5113   29.05716   25.79321   -27.9524   -31.21634   0.03001   205043.60-010439.3  
   0.5124   30.19894   26.22662   -26.8128   -30.78513   0.03464   123129.03+154609.7  
