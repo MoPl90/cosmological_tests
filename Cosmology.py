@@ -714,7 +714,7 @@ class BAO_data:
                     covDM[i,j] =  (5*3/2/meas[i]) * self.err[i,j] *  (5*3/2/meas[j])
                 
                 elif dtype[i]==dtype[j]=='H*rd/rdfid':
-                    covDM[i,j] = self.err[i,j] 
+                    covDM[i,j] = self.err[i,j]*rd_fid/rd 
                 elif dtype[i]==dtype[j]=='DH/rd':
                     covDM[i,j] = self.err[i,j] / meas[i] / meas[j] * self.cLight / rd
             
