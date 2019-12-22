@@ -714,9 +714,9 @@ class BAO_data:
                     covDM[i,j] =  (5*3/2/meas[i]) * self.err[i,j] *  (5*3/2/meas[j])
                 
                 elif dtype[i]==dtype[j]=='H*rd/rdfid':
-                    covDM[i,j] = self.err[i,j]*rd_fid/rd 
+                    covDM[i,j] = self.err[i,j]*(rd_fid/rd)**2
                 elif dtype[i]==dtype[j]=='DH/rd':
-                    covDM[i,j] = self.err[i,j] / meas[i] / meas[j] * self.cLight / rd
+                    covDM[i,j] = self.err[i,j] / meas[i] / meas[j] * (self.cLight / rd)**2
             
         #return sigmaDM.T[0]
         return covDM   # BAO errors are now also arrays due to the correlations in WiggleZ data
