@@ -734,6 +734,7 @@ class BAO_data:
                     covDM[i,j] *= 1/meas[j]**2  * (self.cLight / rd)
                 else:
                     raise(ValueError("Data type unknown"))                    
+
             
         #return sigmaDM.T[0]
         return covDM   # BAO errors are now also arrays due to the correlations in WiggleZ data
