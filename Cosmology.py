@@ -595,12 +595,12 @@ class BAO_data:
     z_d = 1089   # redshift of decoupling
     
     
-    def __init__(self, data, err, dataType):
-        if data.shape[1] != 2 and err.shape[1] != 1:
+    def __init__(self, data, cov, dataType):
+        if data.shape[1] != 2 and cov.shape[1] != 1:
             raise ValueError('Data has wrong format: data = (z, DM/rd)')
         else:
             self.data = data   
-            self.err = err   
+            self.cov = cov   
             self.dataType = dataType
             self.name = "BAO"
             
@@ -609,8 +609,8 @@ class BAO_data:
     def get_data(self):
         return self.data
     
-    def get_err(self):
-        return self.err
+    def get_cov(self):
+        return self.cov
     
     def distance_modulus(self,cosmo):
         # where our heroes convert all BAO data (which come from a variety of formats) into
@@ -694,7 +694,7 @@ class BAO_data:
         return Hpairs
         
     def data_cov(self,cosmo):
-        # this function returns the covariance matrix.
+        # this function returns the covariance matrix for the transformed variables (H, DM).
 
         z, meas = self.data.T
         dtype = self.dataType
@@ -704,21 +704,36 @@ class BAO_data:
         
         rd = cosmo.com_sound_horizon() # sound horizon for given cosmology
         
-        covDM = np.zeros([len(self.err), len(self.err)])
+        covDM = np.zeros([len(self.cov), len(self.cov)])
+        #covDM = # self.cov
                 
-        for i in range(0,len(self.err)):
-            for j in range(0,len(self.err)):
-                if dtype[i]==dtype[j]=='DM*rd_fid/rd' or dtype[i]==dtype[j]=='DM/rd' or dtype[i]==dtype[j]=='DA*rd_fid/rd' or dtype[i]==dtype[j]=='DA/rd':
-                    # calculate cov:
-                    covDM[i,j] =  (5/meas[i]) * self.err[i,j] *  (5/meas[j])
+        for i in range(0,len(self.cov)):
+            for j in range(0,len(self.cov)):
+                covDM[i,j] = self.cov[i,j]
                 
-                elif dtype[i]==dtype[j]=='rd/DV' or dtype[i]==dtype[j]=='DV*rd_fid/rd' or dtype[i]==dtype[j]=='DV/rd' or dtype[i]==dtype[j]=='A':
-                    covDM[i,j] =  (5*3/2/meas[i]) * self.err[i,j] *  (5*3/2/meas[j])
-                
-                elif dtype[i]==dtype[j]=='H*rd/rdfid':
-                    covDM[i,j] = self.err[i,j]*(rd_fid/rd)**2
-                elif dtype[i]==dtype[j]=='DH/rd':
-                    covDM[i,j] = self.err[i,j] / meas[i] / meas[j] * (self.cLight / rd)**2
+                #Convert distance type data into distance modulus
+                if dtype[i]=='DM*rd_fid/rd' or dtype[i]=='DM/rd' or dtype[i]=='DA*rd_fid/rd' or dtype[i]=='DA/rd':
+                    covDM[i,j] *=  (5/meas[i])/np.log(10)
+                elif dtype[i]=='DV*rd_fid/rd' or dtype[i]=='DV/rd' or dtype[i]=='A':
+                    covDM[i,j] *=  (5*3/2/meas[i])/np.log(10)
+                #Convert Hubble type data into Hubble rate
+                elif dtype[i]=='H*rd/rdfid':
+                    covDM[i,j] *= rd_fid/rd
+                elif dtype[i]=='DH/rd':
+                    covDM[i,j] *= 1/meas[i]**2  * (self.cLight / rd)
+                else:
+                    raise(ValueError("Data type unknown"))
+                    
+                if dtype[j]=='DM*rd_fid/rd' or dtype[j]=='DM/rd' or dtype[j]=='DA*rd_fid/rd' or dtype[j]=='DA/rd':
+                    covDM[i,j] *=  (5/meas[j])/np.log(10)
+                elif dtype[j]=='DV*rd_fid/rd' or dtype[j]=='DV/rd' or dtype[j]=='A':
+                    covDM[i,j] *=  (5*3/2/meas[j])/np.log(10)
+                elif dtype[j]=='H*rd/rdfid':
+                    covDM[i,j] *= rd_fid/rd
+                elif dtype[j]=='DH/rd':
+                    covDM[i,j] *= 1/meas[j]**2  * (self.cLight / rd)
+                else:
+                    raise(ValueError("Data type unknown"))                    
             
         #return sigmaDM.T[0]
         return covDM   # BAO errors are now also arrays due to the correlations in WiggleZ data
@@ -919,6 +934,7 @@ class likelihood:
         elif self.model == 'oLCDM':
             Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
             self.cosmo = cosmology(omegam=Omegam, omegac=Omegac, omegab = Omegab, omegag = self.omega_gamma_preset, Hzero=H0)
+            #self.cosmo = cosmology(omegam=Omegam, omegac=1 - Omegam-self.omega_gamma_preset, omegab = Omegab, omegag = self.omega_gamma_preset, Hzero=H0)
         elif self.model == 'wLCDM':
             Omegam, Omegac, Omegab, H0, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
             self.cosmo = cosmology(omegam=Omegam, omegac=Omegac, omegab = Omegab, omegag = self.omega_gamma_preset, w = w, Hzero=H0)
