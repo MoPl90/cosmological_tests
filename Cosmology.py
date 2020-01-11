@@ -236,7 +236,7 @@ class cosmology:
             data = dataObject.distance_modulus()
             Cov = dataObject.data_cov()
         elif dataObject.name == 'BAO':
-            data = dataObject.get_data()[:,1]
+            data = dataObject.get_data()
             Cov = dataObject.get_cov()
             if not np.isfinite(self.com_sound_horizon()):
                 return -np.inf
@@ -252,14 +252,14 @@ class cosmology:
   
         # bring data into correct shape in case it isnt:
         
-        #if data.shape[0] == 2:
-        #    z = data[0]
-        #    DM_data = data[1]
-        #elif data.shape[1] == 2:
-        #    z = data[:,0]
-        #    DM_data = data[:,1]
-        #else:
-        #    raise ValueError('Data has wrong format.')
+        if data.shape[0] == 2:
+            z = data[0]
+            data = data[1]
+        elif data.shape[1] == 2:
+            z = data[:,0]
+            data = data[:,1]
+        else:
+            raise ValueError('Data has wrong format.')
            
  
         # define the model DM:
@@ -275,16 +275,18 @@ class cosmology:
         if len(Cov.shape) == 2:
             Cov_inv = np.linalg.inv(Cov)
             Cov_eigvals = np.linalg.eigvalsh(Cov)
+            cov_len = np.shape(Cov)[1]
         elif len(Cov.shape) == 1:
             Cov_inv = np.diag(1/Cov)
             Cov_eigvals = Cov
+            cov_len = 1
         else:
             raise ValueError('Cov must be 1d or 2d array')
         
         
         
         
-        return -0.5 * ((model - data) @ Cov_inv @ (model - data)) - .5 * (np.sum(np.log(Cov_eigvals)) + np.shape(Cov)[1] * np.log(2*np.pi))
+        return -0.5 * ((model - data) @ Cov_inv @ (model - data)) - .5 * (np.sum(np.log(Cov_eigvals)) + cov_len * np.log(2*np.pi))
         #return  - .5 * (np.sum(np.log(Cov_eigvals)) + np.log(2*np.pi))
         #return model-data
 
