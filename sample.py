@@ -6,17 +6,30 @@ from Cosmology import *
 import sys
 
 #KMA 15 Nov 19: updated parameters in correspondence with current jupyter nb
+#KMA 11 Jan 20: added option to use numerical or analytical formulae for z_d and r_d
 
-#Parameters for BAO -- CHECK THESE VALUES
+
+#########################################################################
+
+#Parameters for BAO and CMB
 z_d = 1089
 h = .6727
-omega_baryon_preset = 0.02236/h**2
+cLight=3E5
+omega_baryon_preset = 0.02235/h**2
 omega_gamma_preset = 2.469E-5/h**2
 
 #Cosmological parameters
 Omega_m_preset = 0.3166
-Omega_r_preset = 2.469E-5/h**2 # this is the photon density
+#Omega_r_preset = 2.469E-5/h**2 # this is the photon density
 Omega_c_preset = 0.6834
+
+#Whether to use the numerical approximation for the comoving sound horizon, see arXiv:1411.1074:
+rd_num = False
+#Whether to use the numerical approximation for the redshift of recombination,
+#cf arXiv:1808.05724, or use z_d = 1089:
+zd_num = False
+
+#########################################################################
 
 
 #SN data
@@ -73,19 +86,20 @@ typeBAO = np.genfromtxt('data/BOSS.txt',dtype=str, usecols=2)
 sigmaDR12 = np.diag(np.diag(errBAO)[np.where(np.loadtxt('data/BOSS.txt', usecols=0, dtype=str) == 'BOSS_DR12')])
 corrDR12 = np.tril(np.loadtxt('data/BOSS_DR12_cov.txt', usecols=(1,2,3,4,5,6))*1E-4)
 corrDR12 += corrDR12.T
-corrDR12 /= 2
+corrDR12 -= np.eye(len(corrDR12))
 CovDR12 = np.dot(sigmaDR12, np.dot(corrDR12, sigmaDR12))
 
 #eBOSS Quasar covariance matrix from 1801.03043
 sigmaeBOSS = np.diag(np.diag(errBAO)[np.where(np.loadtxt('data/BOSS.txt', usecols=0, dtype=str) == 'eBOSS_QSO')])
 correBOSS = np.triu(np.loadtxt('data/eBOSS_QSO_cov.txt', usecols=(1,2,3,4,5,6,7,8))*1E-4)
 correBOSS += correBOSS.T
-correBOSS /= 2
+correBOSS -= np.eye(len(correBOSS[0]))
 CoveBOSS = np.dot(sigmaeBOSS, np.dot(correBOSS, sigmaeBOSS))
 
 #assemble the full covariance matrix
 load_cov = np.diag([1 if i else 0 for i in np.loadtxt('data/BOSS.txt',usecols=5)==1]) 
 CovBAO = (errBAO - np.dot(load_cov,errBAO))**2
+#CovBAO = (errBAO)**2
 CovBAO += np.pad(CovDR12,[(2,len(errBAO)-2-len(CovDR12)),(2,len(errBAO)-2-len(CovDR12))], mode='constant', constant_values=0)
 CovBAO += np.pad(CoveBOSS,[(2 + len(CovDR12) + 1,len(errBAO)- 3 - len(CovDR12) - len(CoveBOSS)),(2 + len(CovDR12) + 1,len(errBAO)- 3 - len(CovDR12) - len(CoveBOSS))], mode='constant', constant_values=0)
 
@@ -149,7 +163,7 @@ if 'RC' in sys.argv:
     data_sets.append(RCdata)
      
 def Likelihood(theta): 
-    l = likelihood(theta, data_sets, ranges_min, ranges_max, model = model)
+    l = likelihood(theta, data_sets, ranges_min, ranges_max, model = model, rd_num = rd_num, zd_num = zd_num)
     return l.logprobability_gauss_prior()
 
 ndim, nwalkers, nsteps = len(ranges_min), 512, 1000
