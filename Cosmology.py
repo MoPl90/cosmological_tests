@@ -16,10 +16,10 @@ class cosmology:
     cLight = 3E5 # speed of light in km/s
     #H0 = 70. #the present day Hubble rate in km/s/Mps
     
-    def __init__(self, omegam, omegac, rs = 147.78, omegag=None, omegab = None, w=-1, Hzero=70, rd_num = False, zd_num = False, T_CMB = 2.7255):
+    def __init__(self, omegam, omegac, rs = 147.78, omegag=None, omegab = None, w=-1, Hzero=70, rd_num = False, z_num = True, T_CMB = 2.7255):
         """Initialise a cosmological model"""
         self.rd_num = rd_num # whether the acoustic oscillation scale should be calculated numerically or analytically
-        self.zd_num = zd_num # whether to use redshift of recombination z_d = 1089 or numerical approximation
+        self.z_num = z_num # whether to use redshift of recombination z_d = 1089 or numerical approximation
         self.r_sound = rs
         self.Omegac = omegac #dark energy density
         self.Omegam = omegam #non-relativistic matter energy density
@@ -76,9 +76,10 @@ class cosmology:
         self.eos = w
         return self
     
-    def z_d(self):
+    def z_star(self):
+        #calculate redshift of last scattering, see astro-ph:9510117
         
-        if self.zd_num == False:
+        if self.z_num == False:
             return 1089
         else:
             h = self.H0/100
@@ -87,6 +88,19 @@ class cosmology:
             g2 = .560 / (1 + 21.1 * (self.Omegab*h**2)**1.81)
         
             return 1048 * (1+ .00124 * (self.Omegab*h**2)**-.738) * (1 + g1 * (self.Omegam*h**2)**g2)
+
+    def z_d(self):
+        #calculate redshift of end of drag epoch, see astro-ph:9510117
+        
+        if self.z_num == False:
+            return 1089
+        else:
+            h = self.H0/100
+        
+            b1 = .313 * (self.Omegam*h**2)**-0.419 * (1 + .607*(self.Omegam*h**2)**.674)
+            b2 = .238 * (self.Omegam*h**2)**.223
+        
+            return 1345 * (self.Omegam*h**2)**.251 / (1 + .659 * (self.Omegam*h**2)**.828) * (1 + b1 * (self.Omegab*h**2)**b2)
     
     def set_sound_horizon(self, rs):
         """Set a new value for the sound horizon."""
@@ -106,17 +120,17 @@ class cosmology:
         
         return soundspeed
     
-    def com_sound_horizon(self, m_nu = 0.06):
+    def com_sound_horizon(self, z_rec, m_nu = 0.06):
         """Compute the sound horizon at a given redshift. If Omega_r and Omega_b do not have numerical values, the default r_s is returned."""
+        """For CMB, z_rec should be z_star. For BAO, use z_d"""
         
-        z_d = self.z_d()
-        
+       
         if self.Omegar is None or self.Omegab is None:
             rs = self.r_sound
         elif self.rd_num == True:
             rs = self.rd(m_nu)
         else:
-            rs = integrate.quad(lambda z:self.sound_speed(z,m_nu)/(self.H(z)),z_d,np.inf)[0]
+            rs = integrate.quad(lambda z:self.sound_speed(z,m_nu)/(self.H(z)),z_rec,np.inf)[0]
             self.r_sound = rs
         return rs
     
@@ -183,7 +197,7 @@ class cosmology:
         rdfid = 147.78 # fiducial sound horizon in MPc
         
         
-        rd = self.com_sound_horizon() # sound horizon for given cosmology
+        rd = self.com_sound_horizon(z_rec = z_d) # sound horizon for given cosmology
         
         model_pred = np.zeros([len(dataType), 1])
         
@@ -238,10 +252,10 @@ class cosmology:
         elif dataObject.name == 'BAO':
             data = dataObject.get_data()
             Cov = dataObject.get_cov()
-            if not np.isfinite(self.com_sound_horizon()):
+            if not np.isfinite(self.com_sound_horizon(z_rec = self.z_d())):
                 return -np.inf
         elif dataObject.name == 'CMB':
-            if not np.isfinite(self.com_sound_horizon()):
+            if not np.isfinite(self.com_sound_horizon(z_rec = self.z_star())):
                 return -np.inf
             return dataObject.log_likelihood(self)
         
@@ -294,7 +308,7 @@ class bigravity_cosmology(cosmology):
     """This class inherits from the cosmology base class and implements a bigravity cosmology."""
 
     #def __init__(self, log10m, theta, b1, b2, b3, omegam, omegac, rs=147.78, omegag=None, omegab=None, Hzero=70.):
-    def __init__(self, log10m, theta, b1, b2, b3, omegam, omegac, rs = 147.78, omegag=None, omegab = None, Hzero=70, rd_num = False, zd_num = False, T_CMB = 2.7255):
+    def __init__(self, log10m, theta, b1, b2, b3, omegam, omegac, rs = 147.78, omegag=None, omegab = None, Hzero=70, rd_num = False, z_num = False, T_CMB = 2.7255):
         super().__init__(omegam, omegac=omegac, rs=rs, omegag=omegag, omegab=omegab, w=-1, Hzero=Hzero)
         self.log10mg = log10m
         self.t = theta
@@ -503,17 +517,17 @@ class bigravity_cosmology(cosmology):
         
         
         
-    def com_sound_horizon(self, m_nu = 0.06):
+    def com_sound_horizon(self, z_rec, m_nu = 0.06):
         """Compute the sound horizon at a given redshift. If Omega_r and Omega_b do not have numerical values, the default r_s is returned."""
         
-        z_d = self.z_d()
+        #z_d = self.z_d()
         
         if self.Omegar is None or self.Omegab is None:
             rs = self.r_sound
         else:
             x = np.logspace(-6,0,1000)
             dx = x[1:] - np.delete(x,-1)
-            integrand = 1/2 * ((self.sound_speed(z_d/x,m_nu)/(self.H(z_d/x)) * x**-2)[1:] + np.delete((self.sound_speed(z_d/x, m_nu)/(self.H(z_d/x)) * x**-2), -1))
+            integrand = 1/2 * ((self.sound_speed(z_rec/x,m_nu)/(self.H(z_rec/x)) * x**-2)[1:] + np.delete((self.sound_speed(z_rec/x, m_nu)/(self.H(z_rec/x)) * x**-2), -1))
             rs = z_d * np.sum(integrand * dx)
             self.r_sound = rs
         return rs
@@ -719,7 +733,7 @@ class BAO_data:
         rdfid = 147.78 # fiducial sound horizon in MPc
         z_d = cosmo.z_d()
         
-        rd = cosmo.com_sound_horizon() # sound horizon for given cosmology
+        rd = cosmo.com_sound_horizon(z_rec = z_d) # sound horizon for given cosmology
         
         DMpairs = np.zeros([len(dtype), 2])
         
@@ -774,7 +788,7 @@ class BAO_data:
         dtype = self.dataType
         Hpairs = np.zeros([len(dtype), 2])
         z_d = cosmo.z_d()
-        rd = cosmo.com_sound_horizon()
+        rd = cosmo.com_sound_horizon(z_rec = z_d)
         rdfid = 147.78
         
         for line in range(0,len(dtype)): 
@@ -799,7 +813,7 @@ class BAO_data:
         rdfid = 147.78 # fiducial sound horizon in Mpc
         z_d = cosmo.z_d()
         
-        rd = cosmo.com_sound_horizon() # sound horizon for given cosmology
+        rd = cosmo.com_sound_horizon(z_rec = z_d) # sound horizon for given cosmology
         
         covDM = np.zeros([len(self.cov), len(self.cov)])
         #covDM = # self.cov
@@ -858,16 +872,30 @@ class CMB_data:
     #                       [1.6777190E-08, -1.4772837E-07, 9.5788538E-08]])
     #mu_Planck18 = np.array([2.2337930E-02, 1.2041740E-01, 1.0409010E+00])# Omega_b*h**2, Omega_m*h**2 - Omega_b*h**2, 100 rd / DM!!!!!!!!!!!!!!!!!!!!
     
-    #Data and covmat from Planck2018 TTTEEE+lowE, marginalised over all other parameters. See 1808.05724:
-    mu_Planck18 = np.array([1.750235, 301.4707, 0.02235976])# R, lA, Omegab*h**2
-    #Corr_Planck18 = np.array([[1, .46, -.66],
-    #                       [.46, 1, -.33],
-    #                       [-.66, -.33, 1]])
-    #err_Planck18 = np.array([.0046,.09,.00015])
-    #C_Planck18 = np.dot(np.diag(err_Planck18), np.dot(Corr_Planck18, np.diag(err_Planck18)))
-    C_Planck18 = np.linalg.inv(np.array([[94392.3971, -1360.4913, 1664517.2916],
+    #Data and covmat from Planck2018 TTTEEE+lowE, marginalised over all other parameters. See 1808.05724; given therein are the distance priors for various models:
+    mu_Planck18 = {}
+    C_Planck18 = {}
+    err_Planck18 = {}
+    Corr_Planck18 = {}
+    
+    mu_Planck18['LCDM'] = np.array([1.750235, 301.4707, 0.02235976])# R, lA, Omegab*h**2
+    C_Planck18['LCDM'] = np.linalg.inv(np.array([[94392.3971, -1360.4913, 1664517.2916],
                                          [-1360.4913, 161.4349, 3671.6180],
                                          [1664517.2916, 3671.6180, 79719182.5162]]))
+    
+    mu_Planck18['oLCDM'] = np.array([1.7429, 301.409, 0.02260])# R, lA, Omegab*h**2
+    Corr_Planck18['oLCDM'] = np.array([[1, .54, -.75],
+                                       [.54, 1, -.42],
+                                       [-.75, -.42, 1]])
+    err_Planck18['oLCDM'] = np.array([.0051,.091,.00017])
+    C_Planck18['oLCDM']  = np.dot(np.diag(err_Planck18['oLCDM']), np.dot(Corr_Planck18['oLCDM'], np.diag(err_Planck18['oLCDM'])))
+    
+    mu_Planck18['wLCDM'] = np.array([1.7493, 301.462, 0.02239])# R, lA, Omegab*h**2
+    Corr_Planck18['wLCDM'] = np.array([[1, .47, -.66],
+                                       [.47, 1, -.34],
+                                       [-.66, -.34, 1]])
+    err_Planck18['wLCDM'] = np.array([.0047,.090,.00015])
+    C_Planck18['wLCDM']  = np.dot(np.diag(err_Planck18['wLCDM']), np.dot(Corr_Planck18['wLCDM'], np.diag(err_Planck18['wLCDM'])))
     
     #Planck13 and WMAP from 1411.1074:
     C_Planck13 = 1E-7 * np.array([[1.286,-6.033, -144.3],
@@ -880,13 +908,26 @@ class CMB_data:
                               [-111.1, -74.95, 254200]])
     mu_WMAP = np.array([.02259, .1354, 94.51]) # Omega_b*h**2, Omega_m*h**2, DM/rd
     
-    def __init__(self, satellite):
+    def __init__(self, cosmo, satellite):
+        
+        if satellite == 'Planck18':
+            if cosmo == 'LCDM':
+                pass
+            elif cosmo == 'bigravity':
+                cosmo = 'LCDM'
+            elif cosmo == 'oLCDM' or cosmo == 'obigravity' or  cosmo == 'conformal':
+                cosmo = 'oLCDM'
+            elif cosmo == 'wLCDM':
+                cosmo = 'wLCDM'
+            else:
+                raise(ValueError("Cosmology needs to be specified to load Planck18 data"))
+        
         
         self.name = 'CMB'
         self.satellite = satellite
         if self.satellite == 'Planck18':
-            self.data  = self.mu_Planck18  # Omega_b, Omega_DM, 100 rd/DM
-            self.cov = self.C_Planck18
+            self.data  = self.mu_Planck18[cosmo]  # Omega_b, Omega_DM, 100 rd/DM
+            self.cov = self.C_Planck18[cosmo]
         elif self.satellite == 'Planck13':
             self.data  = self.mu_Planck13  # Omega_b, Omega_m, DM/rd
             self.cov = self.C_Planck13
@@ -915,9 +956,9 @@ class CMB_data:
         h = cosmo.H0 / 100.
         Omegab = cosmo.Omegab
         Omegam = cosmo.Omegam
-        z_cmb = cosmo.z_d()
+        z_cmb = cosmo.z_star()
         #z_cmb = 1089
-        rs = cosmo.com_sound_horizon()
+        rs = cosmo.com_sound_horizon(z_rec = z_cmb)
         cLight = cosmo.cLight
 
         if self.satellite == 'Planck18':
@@ -1033,13 +1074,13 @@ class likelihood:
 
 
     
-    def __init__(self, theta, data_sets, ranges_min, ranges_max, model, rd_num, zd_num):
+    def __init__(self, theta, data_sets, ranges_min, ranges_max, model, rd_num, z_num):
         
         self.params = theta
         self.data_sets = {}
         self.model = model
         self.rd_num = rd_num # whether the acoustic oscillation scale should be calculated numerically or analytically
-        self.zd_num = zd_num # whether to use redshift of recombination z_d = 1089 or numerical approximation
+        self.z_num = z_num # whether to use redshift of recombination z_d = 1089 or numerical approximation
         
         self.ranges_min, self.ranges_max = np.array(ranges_min), np.array(ranges_max) # prior ranges
         if len(ranges_min) != len(self.params) or len(ranges_max) != len(self.params):
@@ -1065,25 +1106,25 @@ class likelihood:
         if self.model == 'LCDM':
             #initialise without omega_g so that calculated omega_r is used
             Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = cosmology(omegam=Omegam, omegac= 1 - Omegam , omegab = Omegab, Hzero=H0, rd_num = self.rd_num, zd_num = self.zd_num )
+            self.cosmo = cosmology(omegam=Omegam, omegac= 1 - Omegam , omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
         elif self.model == 'oLCDM':
             Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = cosmology(omegam=Omegam, omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, zd_num = self.zd_num )
+            self.cosmo = cosmology(omegam=Omegam, omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
             #self.cosmo = cosmology(omegam=Omegam, omegac=1 - Omegam-self.omega_gamma_preset, omegab = Omegab, omegag = self.omega_gamma_preset, Hzero=H0)
         elif self.model == 'wLCDM':
             Omegam, Omegac, Omegab, H0, w, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = cosmology(omegam=Omegam, omegac=Omegac, omegab = Omegab,  w = w, Hzero=H0, rd_num = self.rd_num, zd_num = self.zd_num )
+            self.cosmo = cosmology(omegam=Omegam, omegac=Omegac, omegab = Omegab,  w = w, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
         elif self.model == 'conformal':
             gamma0, kappa, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
             Omegak =  (gamma0)**2 / 2 *cosmology.cLight**2/(70./1E-3)**2#Gpc^-1
             Omegac = 1-Omegak
-            self.cosmo = cosmology(omegam=0., omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, zd_num = self.zd_num )
+            self.cosmo = cosmology(omegam=0., omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
         elif self.model == 'bigravity':
             B1, B2, B3, t,  Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = bigravity_cosmology(-32, t, B1, B2, B3, omegam=Omegam, omegac=1-Omegam-self.omega_gamma_preset, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, zd_num = self.zd_num )
+            self.cosmo = bigravity_cosmology(-32, t, B1, B2, B3, omegam=Omegam, omegac=1-Omegam-self.omega_gamma_preset, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
         elif self.model == 'obigravity':
             B1, B2, B3, t,  Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = bigravity_cosmology(-32, t, B1, B2, B3, omegam=Omegam, omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, zd_num = self.zd_num )
+            self.cosmo = bigravity_cosmology(-32, t, B1, B2, B3, omegam=Omegam, omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
         else: 
             raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity, obigravity, conformal]'))
 
@@ -1103,7 +1144,7 @@ class likelihood:
         """
         
         print("Calculate rd numerically: " + str(self.rd_num))
-        print("Calculate zd numerically: " + str(self.zd_num))
+        print("Calculate zd numerically: " + str(self.z_num))
         
         
 

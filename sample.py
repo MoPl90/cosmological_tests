@@ -25,9 +25,9 @@ Omega_c_preset = 0.6834
 
 #Whether to use the numerical approximation for the comoving sound horizon, see arXiv:1411.1074:
 rd_num = False
-#Whether to use the numerical approximation for the redshift of recombination,
-#cf arXiv:1808.05724, or use z_d = 1089:
-zd_num = False
+#Whether to use the numerical approximation for the redshift of last scattering and end of drag epoch,
+#cf arXiv:astro-ph/9510117, or use z_d = z_star = 1089:
+z_num = True
 
 #########################################################################
 
@@ -115,7 +115,7 @@ BAOdata = BAO_data(dataBAO, CovBAO, typeBAO)
 
 
 #CMB Planck 2013 data
-CMBdata = CMB_data('Planck18')
+CMBdata = CMB_data(model, 'Planck18')
 
 
 
@@ -163,7 +163,7 @@ if 'RC' in sys.argv:
     data_sets.append(RCdata)
      
 def Likelihood(theta): 
-    l = likelihood(theta, data_sets, ranges_min, ranges_max, model = model, rd_num = rd_num, zd_num = zd_num)
+    l = likelihood(theta, data_sets, ranges_min, ranges_max, model = model, rd_num = rd_num, z_num = z_num)
     return l.logprobability_gauss_prior()
 
 ndim, nwalkers, nsteps = len(ranges_min), 512, 1000
