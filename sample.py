@@ -114,12 +114,14 @@ CovBAO += Cov
 BAOdata = BAO_data(dataBAO, CovBAO, typeBAO)
 
 
-#CMB Planck 2013 data
+
+model = sys.argv[-1]
+
+
+#CMB Planck 2018 data
 CMBdata = CMB_data(model, 'Planck18')
 
 
-
-model = sys.argv[-1]
 
 if not model in ['LCDM', 'oLCDM', 'wLCDM', 'conformal', 'bigravity', 'obigravity']:
     raise(NameError('Specify a cosmological model as the last argument.'))

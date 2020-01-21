@@ -1,4 +1,5 @@
-This is my code to (locally) sample the posterior distribution of cosmological and nuisscance parameters given Supernova and Quasar data. With minor modifications, this can be run on a cluster
+This is our code to (locally) sample the posterior distribution of cosmological and nuisscance parameters given Supernova and Quasar data. With minor modifications, this can be run on a cluster.
+See arXiv:xxxx.
 
 To run the notebook Sample_Cosmo.ipynb, you will need the package emcee (version 3.0.0). Unfortunately, "pip install emcee" or "conda install -c conda-forge emcee" will install an older version that requires some hacks and the autocorrelation time cannot be calculated. Therefore, the best way to run this is to execute the following steps using anaconda:
 
@@ -25,8 +26,8 @@ Now the Code should run!
 
 The Supernova data is from the Joint Light curve analysis (Betoule et al., arXiv:1401.4064)
 
-Qusar data courtesy of Elisabeta Risaliti; analysis following (Risaliti & Lusso,  arXiv:1505.07118 and arXiv:1811.02590)
+Qusar data courtesy of Elisabeta Lusso; analysis following Risaliti & Lusso, arXiv:1505.07118 and arXiv:1811.02590
 
 BAO data: see publication.
 
-CMB data: Planck legacy archive (https://pla.esac.esa.int/)
+CMB data: Planck18 distnace priors from 1808.05724
