@@ -79,7 +79,7 @@ class cosmology:
     def z_star(self):
         #calculate redshift of last scattering, see astro-ph:9510117
         
-        if self.z_num == False:
+        if self.z_num == False or self.Omegam == 0 or self.Omegab == 0:
             return 1089
         else:
             h = self.H0/100
