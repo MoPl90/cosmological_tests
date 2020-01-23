@@ -528,7 +528,7 @@ class bigravity_cosmology(cosmology):
             x = np.logspace(-6,0,1000)
             dx = x[1:] - np.delete(x,-1)
             integrand = 1/2 * ((self.sound_speed(z_rec/x,m_nu)/(self.H(z_rec/x)) * x**-2)[1:] + np.delete((self.sound_speed(z_rec/x, m_nu)/(self.H(z_rec/x)) * x**-2), -1))
-            rs = z_d * np.sum(integrand * dx)
+            rs = z_rec * np.sum(integrand * dx)
             self.r_sound = rs
         return rs
         
