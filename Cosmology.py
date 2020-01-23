@@ -92,7 +92,7 @@ class cosmology:
     def z_d(self):
         #calculate redshift of end of drag epoch, see astro-ph:9510117
         
-        if self.z_num == False:
+        if self.z_num == False or self.Omegam == 0 or self.Omegab == 0:
             return 1089
         else:
             h = self.H0/100
