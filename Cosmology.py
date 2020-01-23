@@ -533,7 +533,7 @@ class bigravity_cosmology(cosmology):
         return rs
         
         
-    def luminosity_distance(self,z,eps=1e-10):
+    def luminosity_distance(self,z,eps=1e-5):
         """This method overrides the Cosmology.luminosity_distance method. Better handling of H(z) integration."""
 
 
