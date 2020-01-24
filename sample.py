@@ -139,7 +139,7 @@ if model == 'wLCDM': #insert w prior
 
 elif model == 'conformal': #replace Omegam, Omegac -> gamma0, kappa priors
     #ranges_min[2] = np.insert(ranges_min, 1, 0) #gamma0 range identical to Omegam
-    ranges_max[2] = 600 
+    ranges_max[2] = 2500 
     ranges_max[0] = 10 
     
     ranges_min = np.insert(ranges_min, 1, 0) #gamma0 range identical to Omegam
