@@ -79,7 +79,7 @@ class cosmology:
     def z_star(self):
         #calculate redshift of last scattering, see astro-ph:9510117
         
-        if self.z_num == False:
+        if self.z_num == False or self.Omegam == 0 or self.Omegab == 0:
             return 1089
         else:
             h = self.H0/100
@@ -92,7 +92,7 @@ class cosmology:
     def z_d(self):
         #calculate redshift of end of drag epoch, see astro-ph:9510117
         
-        if self.z_num == False:
+        if self.z_num == False or self.Omegam == 0 or self.Omegab == 0:
             return 1089
         else:
             h = self.H0/100
@@ -125,7 +125,7 @@ class cosmology:
         """For CMB, z_rec should be z_star. For BAO, use z_d"""
         
        
-        if self.Omegar is None or self.Omegab is None:
+        if self.Omegar is None or self.Omegab is None or self.rd_num == 'rd_fixed':
             rs = self.r_sound
         elif self.rd_num == True:
             rs = self.rd(m_nu)
@@ -1118,7 +1118,8 @@ class likelihood:
             gamma0, kappa, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
             Omegak =  (gamma0)**2 / 2 *cosmology.cLight**2/(70./1E-3)**2#Gpc^-1
             Omegac = 1-Omegak
-            self.cosmo = cosmology(omegam=0., omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
+            #For CG, we use the numerical approximation, as the baryon and radiation densities are not specified
+            self.cosmo = cosmology(omegam=0., omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = 'rd_fixed', z_num = self.z_num )
         elif self.model == 'bigravity':
             B1, B2, B3, t,  Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
             self.cosmo = bigravity_cosmology(-32, t, B1, B2, B3, omegam=Omegam, omegac=1-Omegam-self.omega_gamma_preset, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
