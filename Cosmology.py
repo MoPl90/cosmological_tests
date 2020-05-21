@@ -7,7 +7,7 @@ from scipy.interpolate import interp1d
 from scipy.special import i0, i1, k0, k1
 
 #eV = 7.461E33#km/s/Mpc
-eV = 4.6282E34#km/s/Mpc
+eV = 4.6282E34#km/s/Mpc -- convertes eV to km/s/Mpc
 
 
 class cosmology:
@@ -244,7 +244,7 @@ class cosmology:
     def log_likelihood(self, dataObject):
         """Compute the Gaussian log-likelihood for given data tuples (z, DM(z)) and covariance."""
         
-        
+        # load data:
         
         if dataObject.name == 'Quasars' or dataObject.name == 'SN':
             data = dataObject.distance_modulus()
@@ -274,9 +274,13 @@ class cosmology:
             data = data[:,1]
         else:
             raise ValueError('Data has wrong format.')
+        
+        # if H(z) is nan (can occur for bigravity), return 0 likelihood
+            if np.isnan(np.any(self.H(z))):
+                return -np.inf
            
  
-        # define the model DM:
+        # calculate the model predictions:
         if dataObject.name == 'Quasars' or dataObject.name == 'SN':
             model = self.distance_modulus(z)
         elif dataObject.name == 'BAO' : # or dataObject.name == 'CMB'
@@ -308,15 +312,16 @@ class bigravity_cosmology(cosmology):
     """This class inherits from the cosmology base class and implements a bigravity cosmology."""
 
     #def __init__(self, log10m, theta, b1, b2, b3, omegam, omegac, rs=147.78, omegag=None, omegab=None, Hzero=70.):
-    def __init__(self, log10m, theta, b1, b2, b3, omegam, omegac, rs = 147.78, omegag=None, omegab = None, Hzero=70, rd_num = False, z_num = False, T_CMB = 2.7255):
+    def __init__(self, log10alpha, B1, B2, B3, omegam, omegac, rs = 147.78, omegag=None, omegab = None, Hzero=70, rd_num = False, z_num = False, T_CMB = 2.7255, verbose = False):
         super().__init__(omegam, omegac=omegac, rs=rs, omegag=omegag, omegab=omegab, w=-1, Hzero=Hzero)
-        self.log10mg = log10m
-        self.t = theta
-        self.betas = np.array([b1, b2, b3])
+        #self.log10mg = log10m
+        self.log10alpha = log10alpha
+        self.B = np.array([B1, B2, B3])
+        self.verbose = verbose #enable printing comments for analysis of solutions for y and H(z)
 
 
 
-    def set_bigra_params(self, log10m, theta, b1, b2, b3):
+    def set_bigra_params(self, log10alpha,B1, B2, B3):
         """
         Change the bigravity model parameters of an existing object.
 
@@ -324,9 +329,8 @@ class bigravity_cosmology(cosmology):
         The modified bigravity_cosmology object
         """
 
-        self.log10mg = log10m
-        self.t = theta
-        self.betas = np.array([b1, b2, b3])
+        self.log10alpha = log10alpha
+        self.B = np.array([B1, B2, B3])
         return self
     
     def set_cosmo_params(self, omegam, omegag=0, Hzero=70.):
@@ -345,62 +349,65 @@ class bigravity_cosmology(cosmology):
     def graviton_mass(self,omegac):
         #Calculates the physical graviton mass using B1, B2, B3 and y0:
         
-        b1, b2, b3 = self.betas * (10**self.log10mg * eV / self.H0)**2
+        B1, B2, B3 = self.B
         
 
-        #b4 is determined from a3=0
-        b4 = 3*b2*np.tan(self.t)**2
+        #B4 is determined from a3=0
+        B4 = 3*B2*(10.**self.log10alpha)**2
 
         #ystar is determined by master-eq, plugging in b0 as defined by the dynamical CC-equation:
-        ystar = np.roots([b4*np.cos(self.t)**2,
-                          3*b3*np.cos(self.t)**2,
-                          -3*omegac+3*b2*np.cos(self.t)**2,
-                          b1*np.cos(self.t)**2])
+        ystar = np.roots([B4*(1/(1 + 10.**(2*self.log10alpha))),
+                          3*B3*(1/(1 + 10.**(2*self.log10alpha))),
+                          -3*omegac+3*B2*(1/(1 + 10.**(2*self.log10alpha))),
+                          B1*(1/(1 + 10.**(2*self.log10alpha)))])
         # accept only real roots:
-        ystar = ystar.real[abs(ystar.imag)<1e-8][0]
+        #print(ystar)
+        #ystar = ystar.real[abs(ystar.imag)<1e-8][0]
+       # print(ystar)
         
-        #ystar = np.roots([-b3*np.sin(self.t)**2,
-        #                  (b4*np.cos(self.t)**2-3*b2*np.sin(self.t)**2),
-        #                  (3*b3*np.cos(self.t)**2-3*b1*np.sin(self.t)**2),
-        #                  (3*b2*np.cos(self.t)**2-b0*np.sin(self.t)**2),
-        #                  b1*np.cos(self.t)**2])
-        #np.roots(b1*np.cos(self.t)**2/ystar 
-        #         + (3*b2*np.cos(self.t)**2-b0*np.sin(self.t)**2) 
-        #         + (3*b3*np.cos(self.t)**2-3*b1*np.sin(self.t)**2)*ystar  
-        #         + (b4*np.cos(self.t)**2-3*b2*np.sin(self.t)**2)*ystar**2
-        #         - b3*np.sin(self.t)**2*ystar**3 )
-        #print(b1,b2,b3)
+        #ystar = np.roots([-B3*(10.**(self.log10alpha)/(1 + 10.**(2*self.log10alpha))**(1/2))**2,
+        #                  (B4*(1/(1 + 10.**(2*self.log10alpha)))-3*B2*(10.**(self.log10alpha)/(1 + 10.**(2*self.log10alpha))**(1/2))**2),
+        #                  (3*B3*(1/(1 + 10.**(2*self.log10alpha)))-3*B1*(10.**(self.log10alpha)/(1 + 10.**(2*self.log10alpha))**(1/2))**2),
+        #                  (3*B2*(1/(1 + 10.**(2*self.log10alpha)))-b0*(10.**(self.log10alpha)/(1 + 10.**(2*self.log10alpha))**(1/2))**2),
+        #                  B1*(1/(1 + 10.**(2*self.log10alpha)))])
+        #np.roots(B1*(1/(1 + 10.**(2*self.log10alpha)))/ystar 
+        #         + (3*B2*(1/(1 + 10.**(2*self.log10alpha)))-b0*(10.**(self.log10alpha)/(1 + 10.**(2*self.log10alpha))**(1/2))**2) 
+        #         + (3*B3*(1/(1 + 10.**(2*self.log10alpha)))-3*B1*(10.**(self.log10alpha)/(1 + 10.**(2*self.log10alpha))**(1/2))**2)*ystar  
+        #         + (B4*(1/(1 + 10.**(2*self.log10alpha)))-3*B2*(10.**(self.log10alpha)/(1 + 10.**(2*self.log10alpha))**(1/2))**2)*ystar**2
+        #         - B3*(10.**(self.log10alpha)/(1 + 10.**(2*self.log10alpha))**(1/2))**2*ystar**3 )
+        #print(B1,B2,B3)
         #print(self.t)
         #print(ystar)
         #print(self.log10mg)
         
-        mg = np.sqrt(ystar*(b1+2*ystar*b2+ystar**2*b3))*10**self.log10mg
+        mg = np.sqrt(ystar*(B1+2*ystar*B2+ystar**2*B3)) * self.H0
 
-         
+        if self.verbose: print('Solving cubic equation for y* and plugging into mg gives:')
+        if self.verbose: print('(need to pick real solution, corresponding to e- or d-sol of master-eq)')
         return mg
     
-    def del_graviton_mass(self,omegac,delH0,delb1,delb2,delb3):
+    def del_graviton_mass(self,omegac,delH0,delB1,delB2,delB3):
         #Calculates the error:
         
-        b1, b2, b3 = self.betas * (10**self.log10mg * eV / self.H0)**2
+        B1, B2, B3 = self.B
         
-        b4 = 3*b2*np.tan(self.t)**2
+        B4 = 3*B2*(10.**self.log10alpha)**2
 
-        ystar = np.roots([b4*np.cos(self.t)**2,
-                          3*b3*np.cos(self.t)**2,
-                          -3*omegac+3*b2*np.cos(self.t)**2,
-                          b1*np.cos(self.t)**2])
+        ystar = np.roots([B4*(1/(1 + 10.**(2*self.log10alpha))),
+                          3*B3*(1/(1 + 10.**(2*self.log10alpha))),
+                          -3*omegac+3*B2*(1/(1 + 10.**(2*self.log10alpha))),
+                          B1*(1/(1 + 10.**(2*self.log10alpha)))])
         # accept only real roots:
-        ystar = ystar.real[abs(ystar.imag)<1e-8][0]
+        #ystar = ystar.real[abs(ystar.imag)<1e-8][0]
         
         
-        mg = np.sqrt(ystar*(b1+2*ystar*b2+ystar**2*b3))*10**self.log10mg
+        mg = np.sqrt(ystar*(B1+2*ystar*B2+ystar**2*B3)) * self.H0
         #calculate error of mg: (use 1/eV to compensate mass units of H0).
         #We do not propagate the error into ystar, as it does not increase the margins significantly
         delmg = np.sqrt((mg*delH0/self.H0)**2
-                        + (ystar*self.H0**2/eV**2*delb1/(2*mg))**2
-                        + (2*ystar**2*self.H0**2/eV**2*delb2/(2*mg))**2
-                        + (ystar**3*self.H0**2/eV**2*delb3/(2*mg))**2 )
+                        + (ystar*self.H0**2/eV**2*delB1/(2*mg))**2
+                        + (2*ystar**2*self.H0**2/eV**2*delB2/(2*mg))**2
+                        + (ystar**3*self.H0**2/eV**2*delB3/(2*mg))**2 )
 
          
         return delmg
@@ -411,75 +418,147 @@ class bigravity_cosmology(cosmology):
         This is Kevin's exact solution to the Bianchi-/Master-Equation of bigravity cosmology.
 
         Input:    
-        redshift z
+        redshift (array!) z
 
         Returns:
         y = b(z) / a(z) 
         """ 
         
-        b1, b2, b3 = self.betas * (10**self.log10mg * eV / self.H0)**2
+        # precision when taking roots and evaluating imaginary parts:
+        eps = 10.**-10
+        
+        B1, B2, B3 = self.B
         
         
-        a0 = - b1 / ( np.tan(self.t)**2 * b3) + 0j
+        # Determine the coefficients a:
+        
+        a0 = - B1 / ( (10.**self.log10alpha)**2 * B3) + 0j
+        
         if not self.Omegar is None:
-            #a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegar * (1+z)**4 + self.Omegam * (1 + z)**3 + self.Omegak * (1 + z)**2 + self.Omegac)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
+            #a1 = lambda z, b0: (-3*B2 + b0*(10.**self.log10alpha)**2 + (3*(self.Omegar * (1+z)**4 + self.Omegam * (1 + z)**3 + self.Omegak * (1 + z)**2 + self.Omegac)*(1 + (10.**self.log10alpha)**2)))/B3/(10.**self.log10alpha)**2+0j
             # a1 should only contain CC, rad and mat components of densities: (KMA)
-            a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegar * (1+z)**4 + self.Omegam * (1 + z)**3 + self.Omegac)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
+            a1 = lambda z, b0: (-3*B2 + b0*(10.**self.log10alpha)**2 + (3*(self.Omegar * (1+z)**4 + self.Omegam * (1 + z)**3 + self.Omegac)*(1 + (10.**self.log10alpha)**2)))/B3/(10.**self.log10alpha)**2+0j
         else:
-            #a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegam * (1 + z)**3 + self.Omegak * (1 + z)**2 + self.Omegac)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
+            #a1 = lambda z, b0: (-3*B2 + b0*(10.**self.log10alpha)**2 + (3*(self.Omegam * (1 + z)**3 + self.Omegak * (1 + z)**2 + self.Omegac)*(1 + (10.**self.log10alpha)**2)))/B3/(10.**self.log10alpha)**2+0j
             # a1 should only contain CC, rad and mat components of densities: (KMA)
-            a1 = lambda z, b0: (-3*b2 + b0*np.tan(self.t)**2 + (3*(self.Omegam * (1 + z)**3 + self.Omegac)*(1 + np.tan(self.t)**2)))/b3/np.tan(self.t)**2+0j
-        a2 = (3*b1)/b3 - 3*1/np.tan(self.t)**2+0j
+            a1 = lambda z, b0: (-3*B2 + b0*(10.**self.log10alpha)**2 + (3*(self.Omegam * (1 + z)**3 + self.Omegac)*(1 + (10.**self.log10alpha)**2)))/B3/(10.**self.log10alpha)**2+0j
+        
+        a2 = (3*B1)/B3 - 3*1/(10.**self.log10alpha)**2+0j
+        
+        # a3 is zero, see paper
+        
+        
+        # We now determine the solution to the cubic eq of x(z):
         
         cubic_sol = lambda z, b0: a2/3 - (2**(1/3)*(-12*a0 - a2**2))/(3*(27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)) + (27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)/(3.*2**(1/3))
         
-        # We fix b0 by demanding the CC == 0 for stationary y0 (y at z=0). This depends on the correct y-sol (D-case or E-case:), so we calculate y0 in both cases.
+        # We fix B0 by demanding the CC == 0 for stationary y0 (y at z=0). This depends on the correct y-sol (D-case or E-case:), so we calculate y0 in both cases.
         
         # This finds the stationary y0 (y at z=0) for the E-solution:
-        # KMA: Corrected signs (was: y0 - R/2 + E/2 == 0. Is now: y0 + R/2 - E/2 == 0.) Please Check.
-        y0e = fsolve(lambda y0: y0 + np.real(-np.sqrt(-a2 + cubic_sol(0., -3 * b1 * y0 - 3 * b2 * y0**2 - b3 * y0**3))/2. - np.sqrt(-a2 - cubic_sol(0., -3 * b1 * y0 - 3 * b2 * y0**2 - b3 * y0**3) + (2*a1(0,-3*b1*y0 - 3*b2*y0**2 - b3*y0**3))/np.sqrt(-a2 + cubic_sol(0., -3 * b1 * y0 - 3 * b2 * y0**2 - b3 * y0**3)))/2.), 1.)[0]
+        y0e = fsolve(lambda y0: y0 + np.real(-np.sqrt(-a2 + cubic_sol(0., -3 * B1 * y0 - 3 * B2 * y0**2 - B3 * y0**3))/2. - np.sqrt(-a2 - cubic_sol(0., -3 * B1 * y0 - 3 * B2 * y0**2 - B3 * y0**3) + (2*a1(0,-3*B1*y0 - 3*B2*y0**2 - B3*y0**3))/np.sqrt(-a2 + cubic_sol(0., -3 * B1 * y0 - 3 * B2 * y0**2 - B3 * y0**3)))/2.), 1.)[0]
+        
         # This finds the stationary y0 (y at z=0) for the D-solution:
-        y0d = fsolve(lambda y0: y0 - np.real(-np.sqrt(-a2 + cubic_sol(0., -3 * b1 * y0 - 3 * b2 * y0**2 - b3 * y0**3))/2. + np.sqrt(-a2 - cubic_sol(0., -3 * b1 * y0 - 3 * b2 * y0**2 - b3 * y0**3) - (2*a1(0,-3*b1*y0 - 3*b2*y0**2 - b3*y0**3))/np.sqrt(-a2 + cubic_sol(0., -3 * b1 * y0 - 3 * b2 * y0**2 - b3 * y0**3)))/2.), 1.)[0]
+        y0d = fsolve(lambda y0: y0 - np.real(-np.sqrt(-a2 + cubic_sol(0., -3 * B1 * y0 - 3 * B2 * y0**2 - B3 * y0**3))/2. + np.sqrt(-a2 - cubic_sol(0., -3 * B1 * y0 - 3 * B2 * y0**2 - B3 * y0**3) - (2*a1(0,-3*B1*y0 - 3*B2*y0**2 - B3*y0**3))/np.sqrt(-a2 + cubic_sol(0., -3 * B1 * y0 - 3 * B2 * y0**2 - B3 * y0**3)))/2.), 1.)[0]
                 
-        b0e = -3 * b1 * y0e - 3 * b2 * y0e**2 - b3 * y0e**3
-        b0d = -3 * b1 * y0d - 3 * b2 * y0d**2 - b3 * y0d**3
-                
+        B0e = -3 * B1 * y0e - 3 * B2 * y0e**2 - B3 * y0e**3
+        B0d = -3 * B1 * y0d - 3 * B2 * y0d**2 - B3 * y0d**3
+        
 
-                
+        if self.verbose: print('B0d =',B0d)
+        if self.verbose: print('B0e =',B0e)
+
+        x1e = cubic_sol(z, B0e)
+        x1d = cubic_sol(z, B0d)
+        
+        
+        """
         try:
-            x1e = cubic_sol(z, b0e)
-            x1d = cubic_sol(z, b0d)
+            if self.verbose: print('x1d =',x1d)
+            if self.verbose: print('x1e =',x1e)
             # These line seems to be problematic, because it aborts if x1 is negative.
-            #if np.any(np.imag(x1) > 10**-6 * np.real(x1)):
+            #if np.any(np.imag(x1) > 10.**-6 * np.real(x1)):
             # I've added an abs on both sides (KMA). Also, the check needs to be done such that *at least one* cubicsol is real:
-            if np.any(np.abs(np.imag(x1e)) > np.abs(10**-6 * np.real(x1e))) or np.any(np.abs(np.imag(x1d)) > np.abs(10**-6 * np.real(x1d))):
+            #if np.any(np.abs(np.imag(x1e)) > np.abs(10.**-6 * np.real(x1e))) or np.any(np.abs(np.imag(x1d)) > np.abs(10.**-6 * np.real(x1d))):
+            if np.any(np.abs(np.imag(x1e)) > np.abs(eps * np.real(x1e))) or np.any(np.abs(np.imag(x1d)) > np.abs(eps * np.real(x1d))):
                 raise ValueError
         except ValueError:
-            return np.zeros_like(z)
+            if self.verbose: print('x1 is not real')
+            return np.nan
 
-#         if np.all(x1 >= a2) and np.all(-a2 - x1 + (2*a1(z,b0))/np.sqrt(-a2 + x1) >= 0.) and np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.) and np.all(27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.) and np.all((1/6)*(-8*a2 - (2*2**(1/3)*(12*a0 + a2**2))/(27*a1(0,b0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0,b0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3) - 2**(2/3)*(27*a1(0,b0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0,b0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3) + (12*np.sqrt(6)*a1(0,b0))/np.sqrt(-4*a2 + (2*2**(1/3)*(12*a0 + a2**2))/(27*a1(0,b0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0,b0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3) + 2**(2/3)*(27*a1(0,b0)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(-4*(12*a0 + a2**2)**3 + (27*a1(0,b0)**2 - 72*a0*a2 + 2*a2**3)**2))**(1/3)))):
-                   
-#             return np.real(-np.sqrt(-a2 + x1)/2. + np.sqrt(-a2 - x1 + (2*a1(z,-3*b1*y0 - 3*b2*y0**2 - b3*y0**3))/np.sqrt(-a2 + x1))/2.)
+        # We may now discard any imaginary part of x1 below working precision:
+        x1d = np.real(x1d)
+        x1e = np.real(x1e)
+        
+        """
+        
+        if self.verbose: print('x1d =',x1d)
+        if self.verbose: print('x1e =',x1e) 
+        
+        # We now have all ingredients to solve the master-eq:
+        
+        
+        
+      
+        ye = -np.sqrt(-a2 + x1e)/2. + np.sqrt(-a2 - x1e + (2*a1(z,B0e))/np.sqrt(-a2 + x1e))/2.
+        yd = np.sqrt(-a2 + x1d)/2. - np.sqrt(-a2 - x1d - (2*a1(z,B0d))/np.sqrt(-a2 + x1d))/2.
+        
+        if self.verbose: print('yd = ', yd)
+        if self.verbose: print('ye = ', ye)
 
-        #print('b0d =',b0d)
-        #print('b0e =',b0e)
+        # Check that there is exactly one y-sol which is real:
+        
+        yeSolReal = False if np.any(np.abs(np.imag(ye)) > np.abs(eps * np.real(ye))) else True
+        ydSolReal = False if np.any(np.abs(np.imag(yd)) > np.abs(eps * np.real(yd))) else True
+        
+        if not ydSolReal and not yeSolReal:
+            if self.verbose: print('no real solution for y')
+            return np.nan
+        
+        # catch the exception that both y-sols are equally valid -- this can happen if the working precision is too low and e.g. y0d = real + 0.j, y0e = real + #.j, but numerically, y0d appears as real + tiny*j
+        elif ydSolReal and np.any(0. <= np.real(yd)) and yeSolReal and np.any(0. <= np.real(ye)):
+            if self.verbose: print('B = ', self.B)
+            if self.verbose: print('log10alpha = ', self.log10alpha)
+            if self.verbose: print('yd = ', yd)
+            if self.verbose: print('ye = ', ye)
+            if self.verbose: raise ValueError('Ambigious result: two possible solutions for y found.')
+            # in the real simulation, we discard these values, assuming that the affected param space is small:
+            return np.nan
+        
+        elif ydSolReal and np.any(0. <= np.real(yd)):
+                return np.real(yd)
+            
+        elif yeSolReal and np.any(0. <= np.real(ye)):
+                return np.real(ye)
+        else:
+            if self.verbose: print('no positive solution for y')
+            return np.nan
+        
+        
 
-        if (np.all(x1e >= a2) or np.all(x1d >= a2)) and (np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0e)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.) or  np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0d)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.)) and (np.all(27*a1(z,b0e)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0e)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.) or np.all(27*a1(z,b0d)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,b0d)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.)):
+        
+        """
+
+        if (np.all(x1e >= a2) or np.all(x1d >= a2)) and (np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z,B0e)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.) or  np.all(4*(-12*a0 - a2**2)**3 + (27*a1(z,B0d)**2 - 72*a0*a2 + 2*a2**3)**2 >= 0.)) and (np.all(27*a1(z,B0e)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,B0e)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.) or np.all(27*a1(z,B0d)**2 - 72*a0*a2 + 2*a2**3 + np.sqrt(4*(-12*a0 - a2**2)**3 + (27*a1(z,B0d)**2 - 72*a0*a2 + 2*a2**3)**2) >= 0.)):
             # for a1 -> infty as z->infty, the third solution (E) is selected. Check that the sqrts are real, that the solution is real for z=0, and that y>0: (Note that the last condition also gives a final check if y is real)
-            if np.all(a1(z,b0e) >= 0) and np.all(-a2 - x1e + (2*a1(z,b0e))/np.sqrt(-a2 + x1e) >= 0.) and np.all(-a2 - cubic_sol(0,b0e) + (2*a1(0,b0e))/np.sqrt(-a2 + cubic_sol(0,b0e)) >= 0.) and np.all(-np.sqrt(-a2 + x1e)/2. + np.sqrt(-a2 - x1e + (2*a1(z,b0e))/np.sqrt(-a2 + x1e))/2. >= 0):
-                #print(b0e)
-                #print('e-sol selected')
-                return np.real(-np.sqrt(-a2 + x1e)/2. + np.sqrt(-a2 - x1e + (2*a1(z,b0e))/np.sqrt(-a2 + x1e))/2.)
+            if np.all(a1(z,B0e) >= 0) and np.all(-a2 - x1e + (2*a1(z,B0e))/np.sqrt(-a2 + x1e) >= 0.) and np.all(-a2 - cubic_sol(0,B0e) + (2*a1(0,B0e))/np.sqrt(-a2 + cubic_sol(0,B0e)) >= 0.) and np.all(-np.sqrt(-a2 + x1e)/2. + np.sqrt(-a2 - x1e + (2*a1(z,B0e))/np.sqrt(-a2 + x1e))/2. >= 0):
+                #print(B0e)
+                if self.verbose: print('e-sol selected')
+                return np.real(-np.sqrt(-a2 + x1e)/2. + np.sqrt(-a2 - x1e + (2*a1(z,B0e))/np.sqrt(-a2 + x1e))/2.)
+            
             # same for a1 -> - infty as z->infty. Now, the second solution (D) is selected.
-            elif np.all(a1(z,b0d) <= 0) and np.all(-a2 - x1d - (2*a1(z,b0d))/np.sqrt(-a2 + x1d) >= 0.) and np.all(-a2 - cubic_sol(0,b0d) - (2*a1(0,b0d))/np.sqrt(-a2 + cubic_sol(0,b0d)) >= 0.) and np.all(np.sqrt(-a2 + x1d)/2. - np.sqrt(-a2 - x1d - (2*a1(z,b0d))/np.sqrt(-a2 + x1d))/2. >= 0):
-                #print(b0d)
-                #print('d-sol selected')
-                return np.real(np.sqrt(-a2 + x1d)/2. - np.sqrt(-a2 - x1d - (2*a1(z,b0d))/np.sqrt(-a2 + x1d))/2.)
+            elif np.all(a1(z,B0d) <= 0) and np.all(-a2 - x1d - (2*a1(z,B0d))/np.sqrt(-a2 + x1d) >= 0.) and np.all(-a2 - cubic_sol(0,B0d) - (2*a1(0,B0d))/np.sqrt(-a2 + cubic_sol(0,B0d)) >= 0.) and np.all(np.sqrt(-a2 + x1d)/2. - np.sqrt(-a2 - x1d - (2*a1(z,B0d))/np.sqrt(-a2 + x1d))/2. >= 0):
+                #print(B0d)
+                if self.verbose: print('d-sol selected')
+                return np.real(np.sqrt(-a2 + x1d)/2. - np.sqrt(-a2 - x1d - (2*a1(z,B0d))/np.sqrt(-a2 + x1d))/2.)
+            
             else:
-                #print('e, d-sol NOT selected')
-                return np.zeros_like(z)
-        else: 
-            return np.zeros_like(z)
+                if self.verbose: print('e, d-sol NOT selected')
+                return np.nan
+        else:
+            if self.verbose: print('no real solution for y: a square root has evaluated to complex value')
+            return np.nan
+        
+        """
             
         return -1
         
@@ -495,25 +574,33 @@ class bigravity_cosmology(cosmology):
         Hubble rate H(z)
         """
         
-        bt1, bt2, bt3 = self.betas 
+        B1, B2, B3 = self.B
         y = self.Bianchi(z)
         y0 = self.Bianchi(0.)
-        #as we also incorporate a fit parameter omegac, we set b0 such that the dynamical CC is zero at y0:
-        b0 = -3*bt1*y0 - 3*bt2*y0**2 - bt3*y0**3
-        m = 10**self.log10mg
+        
+        if np.any(np.isnan(y)) or np.any(np.isnan(y0)):
+            if self.verbose: print('y or y0 have returned 0')
+            return -np.nan* np.ones_like(z)
+        
+        #as we also incorporate a fit parameter omegac, we set B0 such that the dynamical CC is zero at y0:
+        B0 = -3*B1*y0 - 3*B2*y0**2 - B3*y0**3
+        #m = 10.**self.log10mg
         
         #after subtracting the constant part, the dynamical part of the CC contributes to H as Lambda/3:
-        CC_dyn = m**2 * np.sin(self.t)**2 * (b0*np.ones_like(y) + 3*bt1*y + 3*bt2*y**2 + bt3*y**3)/3.
+        CC_dyn = self.H0**2 * (10.**(2*self.log10alpha)/(1 + 10.**(2*self.log10alpha))) * (B0*np.ones_like(y) + 3*B1*y + 3*B2*y**2 + B3*y**3)/3.
         
         if not self.Omegar is None:
             hubble_squared = self.H0**2 * (self.Omegar * (1+z)**4 + self.Omegam * (1+z)**3 + self.Omegak * (1 + z)**2 + self.Omegac)
         else:
             hubble_squared = self.H0**2 * (self.Omegam * (1+z)**3 + self.Omegak * (1 + z)**2 + self.Omegac)
         
-        if np.any(hubble_squared + CC_dyn.T*eV**2 < 0):
-            return -np.inf * np.ones_like(z)
+        if np.any(hubble_squared + CC_dyn.T < 0):
+            if self.verbose: print('Hubble squared without dynamical CC: ', hubble_squared)
+            if self.verbose: print('Hubble squared, only dynamical CC component: ', CC_dyn.T)
+            if self.verbose: print('Hubble rate has returned complex value')
+            return -np.nan* np.ones_like(z)
         else:
-            return np.sqrt(hubble_squared + CC_dyn.T*eV**2)
+            return np.sqrt(hubble_squared + CC_dyn.T)
         
         
         
@@ -883,12 +970,12 @@ class CMB_data:
                                          [-1360.4913, 161.4349, 3671.6180],
                                          [1664517.2916, 3671.6180, 79719182.5162]]))
     
-    mu_Planck18['oLCDM'] = np.array([1.7429, 301.409, 0.02260])# R, lA, Omegab*h**2
-    Corr_Planck18['oLCDM'] = np.array([[1, .54, -.75],
+    mu_Planck18['kLCDM'] = np.array([1.7429, 301.409, 0.02260])# R, lA, Omegab*h**2
+    Corr_Planck18['kLCDM'] = np.array([[1, .54, -.75],
                                        [.54, 1, -.42],
                                        [-.75, -.42, 1]])
-    err_Planck18['oLCDM'] = np.array([.0051,.091,.00017])
-    C_Planck18['oLCDM']  = np.dot(np.diag(err_Planck18['oLCDM']), np.dot(Corr_Planck18['oLCDM'], np.diag(err_Planck18['oLCDM'])))
+    err_Planck18['kLCDM'] = np.array([.0051,.091,.00017])
+    C_Planck18['kLCDM']  = np.dot(np.diag(err_Planck18['kLCDM']), np.dot(Corr_Planck18['kLCDM'], np.diag(err_Planck18['kLCDM'])))
     
     mu_Planck18['wLCDM'] = np.array([1.7493, 301.462, 0.02239])# R, lA, Omegab*h**2
     Corr_Planck18['wLCDM'] = np.array([[1, .47, -.66],
@@ -915,8 +1002,8 @@ class CMB_data:
                 pass
             elif cosmo == 'bigravity':
                 cosmo = 'LCDM'
-            elif cosmo == 'oLCDM' or cosmo == 'obigravity' or  cosmo == 'conformal':
-                cosmo = 'oLCDM'
+            elif cosmo == 'kLCDM' or cosmo == 'kbigravity' or  cosmo == 'conformal':
+                cosmo = 'kLCDM'
             elif cosmo == 'wLCDM':
                 cosmo = 'wLCDM'
             else:
@@ -1074,9 +1161,9 @@ class likelihood:
 
 
     
-    def __init__(self, theta, data_sets, ranges_min, ranges_max, model, rd_num, z_num):
+    def __init__(self, log10alpha, data_sets, ranges_min, ranges_max, model, rd_num, z_num):
         
-        self.params = theta
+        self.params = log10alpha
         self.data_sets = {}
         self.model = model
         self.rd_num = rd_num # whether the acoustic oscillation scale should be calculated numerically or analytically
@@ -1107,7 +1194,7 @@ class likelihood:
             #initialise without omega_g so that calculated omega_r is used
             Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
             self.cosmo = cosmology(omegam=Omegam, omegac= 1 - Omegam , omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
-        elif self.model == 'oLCDM':
+        elif self.model == 'kLCDM':
             Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
             self.cosmo = cosmology(omegam=Omegam, omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
             #self.cosmo = cosmology(omegam=Omegam, omegac=1 - Omegam-self.omega_gamma_preset, omegab = Omegab, omegag = self.omega_gamma_preset, Hzero=H0)
@@ -1121,13 +1208,13 @@ class likelihood:
             #For CG, we use z_d = 1089:
             self.cosmo = cosmology(omegam=0., omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = False, z_num = False )
         elif self.model == 'bigravity':
-            B1, B2, B3, t,  Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = bigravity_cosmology(-32, t, B1, B2, B3, omegam=Omegam, omegac=1-Omegam-self.omega_gamma_preset, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
-        elif self.model == 'obigravity':
-            B1, B2, B3, t,  Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = bigravity_cosmology(-32, t, B1, B2, B3, omegam=Omegam, omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
+            B1, B2, B3, log10alpha,  Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = bigravity_cosmology(log10alpha, B1, B2, B3, omegam=Omegam, omegac=1-Omegam-self.omega_gamma_preset, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num)
+        elif self.model == 'kbigravity':
+            B1, B2, B3, log10alpha,  Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = bigravity_cosmology(log10alpha, B1, B2, B3, omegam=Omegam, omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
         else: 
-            raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity, obigravity, conformal]'))
+            raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity, kbigravity, conformal]'))
 
             
 
@@ -1198,7 +1285,7 @@ class likelihood:
             Omegab, H0 = self.params[1:3]
         elif self.model == 'bigravity':
             Omegab, H0 = self.params[5:7]
-        elif self.model == 'obigravity':
+        elif self.model == 'kbigravity':
             Omegab, H0 = self.params[6:8]
         else:
             Omegab, H0 = self.params[2:4]

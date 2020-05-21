@@ -123,13 +123,13 @@ CMBdata = CMB_data(model, 'Planck18')
 
 
 
-if not model in ['LCDM', 'oLCDM', 'wLCDM', 'conformal', 'bigravity', 'obigravity']:
+if not model in ['LCDM', 'kLCDM', 'wLCDM', 'conformal', 'bigravity', 'kbigravity']:
     raise(NameError('Specify a cosmological model as the last argument.'))
 
 ranges_min = np.array([0, 0, 60., -5, -10, -30, -.5, 0, 0]) #Omegam, Omegab, H0, alpha, beta, MB, delda_M, beta_prime, s
 ranges_max = np.array([1, 0.1, 80., 5, 10, -10, .5, 10, 3]) #Omegam, Omegab, H0, alpha, beta, MB, delda_M, beta_prime, s
 
-if model == 'oLCDM' or model == 'wLCDM': #insert Omegac prior
+if model == 'kLCDM' or model == 'wLCDM': #insert Omegac prior
     ranges_min = np.insert(ranges_min, 1, 0)
     ranges_max = np.insert(ranges_max, 1, 1.5)
 
@@ -139,22 +139,21 @@ if model == 'wLCDM': #insert w prior
 
 elif model == 'conformal': #replace Omegam, Omegac -> gamma0, kappa priors
     #ranges_min[2] = np.insert(ranges_min, 1, 0) #gamma0 range identical to Omegam
-    ranges_max[2] = 2500 
-    ranges_max[0] = 10 
+    #ranges_max[2] = 2500 
+    #ranges_max[0] = 10 
     
     ranges_min = np.insert(ranges_min, 1, 0) #gamma0 range identical to Omegam
     ranges_max = np.insert(ranges_max, 1, 100) #gamma0 range identical to Omegam
     
 elif model == 'bigravity': #add Bigravity model priors
-    ranges_min = np.append([-3, -3, 0, 0], ranges_min)
-    ranges_max = np.append([3, 3, 3, np.pi/2], ranges_max)
+    ranges_min = np.append([-9, -9, -9, -3], ranges_min)
+    ranges_max = np.append([ 9,  9,  9,  1], ranges_max)
     
-    
-elif model == 'obigravity': #add Bigravity model priors and Omagc
+elif model == 'kbigravity': #add Bigravity model priors and Omagc
     ranges_min = np.insert(ranges_min, 1, 0)
     ranges_max = np.insert(ranges_max, 1, 1.5)
-    ranges_min = np.append([-3, -3, 0, 0], ranges_min)
-    ranges_max = np.append([3, 3, 3, np.pi/2], ranges_max)
+    ranges_min = np.append([-9, -9, -9, -3], ranges_min)
+    ranges_max = np.append([ 9,  9,  9,  1], ranges_max)
     
 data_sets = []
 if 'SN' in sys.argv:
