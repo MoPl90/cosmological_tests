@@ -146,14 +146,14 @@ elif model == 'conformal': #replace Omegam, Omegac -> gamma0, kappa priors
     ranges_max = np.insert(ranges_max, 1, 100) #gamma0 range identical to Omegam
     
 elif model == 'bigravity': #add Bigravity model priors
-    ranges_min = np.append([-9, -9, -9, -3], ranges_min)
-    ranges_max = np.append([ 9,  9,  9,  1], ranges_max)
+    ranges_min = np.append([ -1,-100,-100, -4], ranges_min)
+    ranges_max = np.append([100, 100,   1,  1], ranges_max)
     
 elif model == 'kbigravity': #add Bigravity model priors and Omagc
     ranges_min = np.insert(ranges_min, 1, 0)
     ranges_max = np.insert(ranges_max, 1, 1.5)
-    ranges_min = np.append([-9, -9, -9, -3], ranges_min)
-    ranges_max = np.append([ 9,  9,  9,  1], ranges_max)
+    ranges_min = np.append([ -1,-100,-100, -4], ranges_min)
+    ranges_max = np.append([100, 100,   1,  1], ranges_max)
     
 data_sets = []
 if 'SN' in sys.argv:
