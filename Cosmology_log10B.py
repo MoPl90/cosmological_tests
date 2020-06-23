@@ -312,16 +312,29 @@ class bigravity_cosmology(cosmology):
     """This class inherits from the cosmology base class and implements a bigravity cosmology."""
 
     #def __init__(self, log10m, theta, b1, b2, b3, omegam, omegac, rs=147.78, omegag=None, omegab=None, Hzero=70.):
-    def __init__(self, log10alpha, B1, B2, B3, omegam, omegac, rs = 147.78, omegag=None, omegab = None, Hzero=70, rd_num = False, z_num = False, T_CMB = 2.7255, verbose = False):
+    def __init__(self, log10B1, log10B2, log10B3, omegam, omegac, rs = 147.78, omegag=None, omegab = None, Hzero=70, rd_num = False, z_num = False, T_CMB = 2.7255, verbose = False):
         super().__init__(omegam, omegac=omegac, rs=rs, omegag=omegag, omegab=omegab, w=-1, Hzero=Hzero)
         #self.log10mg = log10m
-        self.log10alpha = log10alpha
-        self.B = np.array([B1, B2, B3])
+        self.log10alpha = 0
+        self.log10B = np.array([log10B1, log10B2, log10B3])
+        
+        # we are sampling the log10B with complex values. This is a workaround for the fact that the B_i can be negative, which cannot be sampled by a log10(B) variable.
+        # The workaround works like this: if Im[log10B] is == 0 => B == 10**log10B; if Im[log10B] is == 1 => B == - 10**log10B (note the minus sign!)
+        if np.all(np.imag(self.log10B) >= 0) and np.all(np.imag(self.log10B) <= 1):
+            self.B = (-1.)**np.imag(self.log10B) * 10.**np.real(self.log10B)
+        else:
+            print(self.log10B)
+            raise ValueError('Imaginary part of at least one log10B_i is not zero or one')
+            
+        
+        
         self.verbose = verbose #enable printing comments for analysis of solutions for y and H(z)
 
+    def get_B(self):
 
+        return self.B
 
-    def set_bigra_params(self, log10alpha,B1, B2, B3):
+    def set_bigra_params(self, log10B1, log10B2, log10B3):
         """
         Change the bigravity model parameters of an existing object.
 
@@ -329,8 +342,11 @@ class bigravity_cosmology(cosmology):
         The modified bigravity_cosmology object
         """
 
-        self.log10alpha = log10alpha
-        self.B = np.array([B1, B2, B3])
+        if np.all(np.imag(self.log10B) >= 0) and np.all(np.imag(self.log10B) <= 1):
+            self.B = (-1.)**np.imag(self.log10B) * 10.**np.real(self.log10B)
+        else:
+            print(self.log10B)
+            raise ValueError('Imaginary part of at least one log10B_i is not zero or one')
         return self
     
     def set_cosmo_params(self, omegam, omegag=0, Hzero=70.):
@@ -349,7 +365,6 @@ class bigravity_cosmology(cosmology):
     def graviton_mass(self,omegac):
         #Calculates the physical graviton mass using B1, B2, B3 and y0:
         
-        B1, B2, B3 = self.B
         
 
         #B4 is determined from a3=0
@@ -431,7 +446,7 @@ class bigravity_cosmology(cosmology):
         
         B1, B2, B3 = self.B
         
-        if self.verbose: print('B =', self.B)
+        if self.verbose: print('B =', np.array([B1,B2,B3]))
         
         # Determine the coefficients a:
         
@@ -1213,11 +1228,11 @@ class likelihood:
             #For CG, we use z_d = 1089:
             self.cosmo = cosmology(omegam=0., omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = False, z_num = False )
         elif self.model == 'bigravity':
-            B1, B2, B3, log10alpha,  Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = bigravity_cosmology(log10alpha, B1, B2, B3, omegam=Omegam, omegac=1-Omegam-self.omega_gamma_preset, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num)
+            log10B1, log10B2, log10B3,  Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = bigravity_cosmology(log10B1, log10B2, log10B3, omegam=Omegam, omegac=1-Omegam-self.omega_gamma_preset, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num)
         elif self.model == 'kbigravity':
-            B1, B2, B3, log10alpha,  Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = bigravity_cosmology(log10alpha, B1, B2, B3, omegam=Omegam, omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
+            log10B1, log10B2, log10B3,  Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = bigravity_cosmology(log10B1, log10B2, log10B3, omegam=Omegam, omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
         else: 
             raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity, kbigravity, conformal]'))
 
