@@ -19,9 +19,9 @@ To run the notebook Sample_Cosmo.ipynb, you will need the package emcee (version
 
 8) cd ../cosmological_tests
 
-9) jupyter-notebook Sample_Cosmo.ipynb *or* mpirun -np [numebr of prallel processes] python sample.py [data sets to include] [cosmological model]
+9) jupyter-notebook Sample_Cosmo.ipynb *or* mpirun -np [number of parallel processes] python sample.py [data sets to include] [cosmological model]
 
-Now the Code should run!
+Now the code should run!
 
 
 
