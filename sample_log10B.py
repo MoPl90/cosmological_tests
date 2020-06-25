@@ -188,7 +188,7 @@ if not pool.is_master():
     sys.exit(0)
     
 #B signs to sring for name of h5 file:
-if B_signs != None: Bsgn_string = ''.join([str(sign) for sign in B_signs])
+if model == 'bigravity' or model == 'kbigravity': Bsgn_string = ''.join([str(sign) for sign in B_signs])
 
 name = model + '_'
 
