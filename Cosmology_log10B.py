@@ -319,7 +319,7 @@ class bigravity_cosmology(cosmology):
         self.log10B = np.array([log10B1, log10B2, log10B3])
         self.B_signs = B_signs
         
-        if self.B_signs == None or np.shape(self.B_signs) != (3,) or not np.all(np.in1d(self.B_signs, [-1,1])) :
+        if np.shape(self.B_signs) != (3,) or not np.all(np.in1d(self.B_signs, [-1,1])) :
             print('Signs of B: ', B_signs)
             raise ValueError('Signs of the B\' not defined correctly! Need to call bigra cosmology with argument B_signs = [1, -1, 1] etc')
 
@@ -1186,7 +1186,7 @@ class likelihood:
         self.model = model
         self.rd_num = rd_num # whether the acoustic oscillation scale should be calculated numerically or analytically
         self.z_num = z_num # whether to use redshift of recombination z_d = 1089 or numerical approximation
-        if B_signs != None: self.B_signs = B_signs
+        if model == 'bigravity' or model == 'kbigravity': self.B_signs = B_signs
         
         self.ranges_min, self.ranges_max = np.array(ranges_min), np.array(ranges_max) # prior ranges
         if len(ranges_min) != len(self.params) or len(ranges_max) != len(self.params):
