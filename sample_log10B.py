@@ -153,7 +153,7 @@ elif model == 'bigravity': #add Bigravity model priors
     ranges_min = np.append([-10,-10,-10], ranges_min)
     ranges_max = np.append([ 10, 10, 10], ranges_max)
     
-    B_signs = sys.argv[-2]
+    B_signs = np.fromstring(sys.argv[-2], dtype=int, sep=',')
     
 elif model == 'kbigravity': #add Bigravity model priors and Omagc
     ranges_min = np.insert(ranges_min, 1, 0)
@@ -161,7 +161,7 @@ elif model == 'kbigravity': #add Bigravity model priors and Omagc
     ranges_min = np.append([-10,-10,-10], ranges_min)
     ranges_max = np.append([ 10, 10, 10], ranges_max)
     
-    B_signs = sys.argv[-2]
+    B_signs = np.fromstring(sys.argv[-2], dtype=int, sep=',')
     
 data_sets = []
 if 'SN' in sys.argv:
