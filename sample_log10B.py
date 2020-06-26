@@ -188,15 +188,19 @@ if not pool.is_master():
     sys.exit(0)
     
 #B signs to sring for name of h5 file:
-#if model == 'bigravity' or model == 'kbigravity': Bsgn_string = ''.join([str(sign) for sign in B_signs])
+if model == 'bigravity' or model == 'kbigravity': Bsgn_string = ''.join([str(sign) for sign in B_signs])
 
 name = model + '_'
 
 if model == 'bigravity' or model == 'kbigravity':
     name += 'log10B_B' + Bsgn_string + '_'
 
-for data_sample in sys.argv[1:-1]:
-    name += data_sample + '_'
+if model == 'bigravity' or model == 'kbigravity':
+    for data_sample in sys.argv[1:-2]:
+        name += data_sample + '_'
+else:
+    for data_sample in sys.argv[1:-1]:
+        name += data_sample + '_'
     
     
 
