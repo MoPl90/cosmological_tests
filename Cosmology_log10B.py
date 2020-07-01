@@ -1303,9 +1303,9 @@ class likelihood:
         if self.model == 'LCDM':
             Omegab, H0 = self.params[1:3]
         elif self.model == 'bigravity':
-            Omegab, H0 = np.real(self.params[5:7])
+            Omegab, H0 = np.real(self.params[4:6])
         elif self.model == 'kbigravity':
-            Omegab, H0 = np.real(self.params[6:8])
+            Omegab, H0 = np.real(self.params[5:7])
         else:
             Omegab, H0 = self.params[2:4]
         h = H0 / 100
@@ -1336,3 +1336,9 @@ class likelihood:
 def calcdellist(chain):
     #calculate dellist for each chain. Dellist: number of MCMC walkers which have not moved from initial position and thus need to be deleted.
         return np.unique(np.where(np.isclose(chain.get_chain()[-1] - chain.get_chain()[0], 0))[0])
+    
+def convertValsToTeX(vec):
+    if not isinstance(vec,np.ndarray):
+        return '$' + str(vec) + '$' 
+    elif len(vec) == 3:
+        return '$' + str(vec[0]) + '^{+' + str(vec[1]) + '}_{-' + str(vec[2]) + '}$' 
