@@ -195,8 +195,12 @@ name = model + '_'
 if model == 'bigravity' or model == 'kbigravity':
     name += 'log10B_B' + Bsgn_string + '_'
 
-for data_sample in sys.argv[1:-1]:
-    name += data_sample + '_'
+if model == 'bigravity' or model == 'kbigravity':
+    for data_sample in sys.argv[1:-2]:
+        name += data_sample + '_'
+else:
+    for data_sample in sys.argv[1:-1]:
+        name += data_sample + '_'
     
     
 
