@@ -361,40 +361,30 @@ class bigravity_cosmology(cosmology):
     
     def graviton_mass(self,omegac):
         #Calculates the physical graviton mass using B1, B2, B3 and y0:
-        #### TO BE FIXED
+        
+        B1, B2, B3 = self.B
         
 
         #B4 is determined from a3=0
         B4 = 3*B2*(10.**self.log10alpha)**2
+        
+
 
         #ystar is determined by master-eq, plugging in b0 as defined by the dynamical CC-equation:
-        ystar = np.roots([B4*(1/(1 + 10.**(2*self.log10alpha))),
-                          3*B3*(1/(1 + 10.**(2*self.log10alpha))),
-                          -3*omegac+3*B2*(1/(1 + 10.**(2*self.log10alpha))),
-                          B1*(1/(1 + 10.**(2*self.log10alpha)))])
-        # accept only real roots:
-        #print(ystar)
-        #ystar = ystar.real[abs(ystar.imag)<1e-8][0]
-       # print(ystar)
-        
-        #ystar = np.roots([-B3*(10.**(self.log10alpha)/(1 + 10.**(2*self.log10alpha))**(1/2))**2,
-        #                  (B4*(1/(1 + 10.**(2*self.log10alpha)))-3*B2*(10.**(self.log10alpha)/(1 + 10.**(2*self.log10alpha))**(1/2))**2),
-        #                  (3*B3*(1/(1 + 10.**(2*self.log10alpha)))-3*B1*(10.**(self.log10alpha)/(1 + 10.**(2*self.log10alpha))**(1/2))**2),
-        #                  (3*B2*(1/(1 + 10.**(2*self.log10alpha)))-b0*(10.**(self.log10alpha)/(1 + 10.**(2*self.log10alpha))**(1/2))**2),
+        #ystar = np.roots([B4*(1/(1 + 10.**(2*self.log10alpha))),
+        #                  3*B3*(1/(1 + 10.**(2*self.log10alpha))),
+        #                  -3*omegac+3*B2*(1/(1 + 10.**(2*self.log10alpha))),
         #                  B1*(1/(1 + 10.**(2*self.log10alpha)))])
-        #np.roots(B1*(1/(1 + 10.**(2*self.log10alpha)))/ystar 
-        #         + (3*B2*(1/(1 + 10.**(2*self.log10alpha)))-b0*(10.**(self.log10alpha)/(1 + 10.**(2*self.log10alpha))**(1/2))**2) 
-        #         + (3*B3*(1/(1 + 10.**(2*self.log10alpha)))-3*B1*(10.**(self.log10alpha)/(1 + 10.**(2*self.log10alpha))**(1/2))**2)*ystar  
-        #         + (B4*(1/(1 + 10.**(2*self.log10alpha)))-3*B2*(10.**(self.log10alpha)/(1 + 10.**(2*self.log10alpha))**(1/2))**2)*ystar**2
-        #         - B3*(10.**(self.log10alpha)/(1 + 10.**(2*self.log10alpha))**(1/2))**2*ystar**3 )
-        #print(B1,B2,B3)
-        #print(self.t)
-        #print(ystar)
-        #print(self.log10mg)
         
-        print(ystar)
+        ystar = self.Bianchi(-1)
         
-        mg = np.sqrt(ystar*(B1+2*ystar*B2+ystar**2*B3)) * self.H0
+        if np.any(np.isnan(ystar)):
+            if self.verbose: print('ystar has returned nan')
+            return np.nan
+        
+        if self.verbose: print('ystar =', ystar)
+        
+        mg = np.sqrt(ystar*(B1+2*ystar*B2+ystar**2*B3)) * self.H0 / eV
 
         if self.verbose: print('Solving cubic equation for y* and plugging into mg gives:')
         if self.verbose: print('(need to pick real solution, corresponding to e- or d-sol of master-eq)')
@@ -402,18 +392,23 @@ class bigravity_cosmology(cosmology):
     
     def del_graviton_mass(self,omegac,delH0,delB1,delB2,delB3):
         #Calculates the error:
-        #### TO BE FIXED
         
         B1, B2, B3 = self.B
         
         B4 = 3*B2*(10.**self.log10alpha)**2
 
-        ystar = np.roots([B4*(1/(1 + 10.**(2*self.log10alpha))),
+        ystar2 = np.roots([B4*(1/(1 + 10.**(2*self.log10alpha))),
                           3*B3*(1/(1 + 10.**(2*self.log10alpha))),
                           -3*omegac+3*B2*(1/(1 + 10.**(2*self.log10alpha))),
                           B1*(1/(1 + 10.**(2*self.log10alpha)))])
-        # accept only real roots:
-        #ystar = ystar.real[abs(ystar.imag)<1e-8][0]
+
+        print('ystar2=',ystar2)
+        ystar = self.Bianchi(-1)
+        
+        if np.any(np.isnan(ystar)):
+            if self.verbose: print('ystar has returned nan')
+            return np.nan
+        print('ystar=',ystar)
         
         
         mg = np.sqrt(ystar*(B1+2*ystar*B2+ystar**2*B3)) * self.H0
@@ -422,7 +417,7 @@ class bigravity_cosmology(cosmology):
         delmg = np.sqrt((mg*delH0/self.H0)**2
                         + (ystar*self.H0**2/eV**2*delB1/(2*mg))**2
                         + (2*ystar**2*self.H0**2/eV**2*delB2/(2*mg))**2
-                        + (ystar**3*self.H0**2/eV**2*delB3/(2*mg))**2 )
+                        + (ystar**3*self.H0**2/eV**2*delB3/(2*mg))**2 ) / eV
 
          
         return delmg

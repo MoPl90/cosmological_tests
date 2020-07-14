@@ -1213,11 +1213,19 @@ class likelihood:
             #For CG, we use z_d = 1089:
             self.cosmo = cosmology(omegam=0., omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = False, z_num = False )
         elif self.model == 'bigravity':
-            B1, B2, B3, log10alpha,  Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = bigravity_cosmology(log10alpha, B1, B2, B3, omegam=Omegam, omegac=1-Omegam-self.omega_gamma_preset, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num)
+            #B1, B2, B3, log10alpha,  Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            #self.cosmo = bigravity_cosmology(log10alpha, B1, B2, B3, omegam=Omegam, omegac=1-Omegam-self.omega_gamma_preset, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num)
+            
+            #for our sampling, we set alpha = 1:
+            B1, B2, B3, Omegam, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = bigravity_cosmology(0, B1, B2, B3, omegam=Omegam, omegac=1-Omegam-self.omega_gamma_preset, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num)
         elif self.model == 'kbigravity':
-            B1, B2, B3, log10alpha,  Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
-            self.cosmo = bigravity_cosmology(log10alpha, B1, B2, B3, omegam=Omegam, omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
+            #B1, B2, B3, log10alpha,  Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            #self.cosmo = bigravity_cosmology(log10alpha, B1, B2, B3, omegam=Omegam, omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
+            
+            #for our sampling, we set alpha = 1:           
+            B1, B2, B3,  Omegam, Omegac, Omegab, H0, a, b, MB, delta_Mhost, beta_prime, s = self.params
+            self.cosmo = bigravity_cosmology(0, B1, B2, B3, omegam=Omegam, omegac=Omegac, omegab = Omegab, Hzero=H0, rd_num = self.rd_num, z_num = self.z_num )
         else: 
             raise(TypeError('Please specify which cosmology to use from [LCDM, wLCDM, bigravity, kbigravity, conformal]'))
 
