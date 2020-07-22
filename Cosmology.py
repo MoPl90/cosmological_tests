@@ -356,10 +356,19 @@ class bigravity_cosmology(cosmology):
         B4 = 3*B2*(10.**self.log10alpha)**2
 
         #ystar is determined by master-eq, plugging in b0 as defined by the dynamical CC-equation:
-        ystar = np.roots([B4*(1/(1 + 10.**(2*self.log10alpha))),
-                          3*B3*(1/(1 + 10.**(2*self.log10alpha))),
-                          -3*omegac+3*B2*(1/(1 + 10.**(2*self.log10alpha))),
-                          B1*(1/(1 + 10.**(2*self.log10alpha)))])
+        #ystar = np.roots([B4*(1/(1 + 10.**(2*self.log10alpha))),
+        #                  3*B3*(1/(1 + 10.**(2*self.log10alpha))),
+        #                  -3*omegac+3*B2*(1/(1 + 10.**(2*self.log10alpha))),
+        #                  B1*(1/(1 + 10.**(2*self.log10alpha)))])
+        
+        
+        ystar = self.Bianchi(-1)
+        
+        if np.any(np.isnan(ystar)):
+            if self.verbose: print('ystar has returned nan')
+            return np.nan
+        
+        if self.verbose: print('ystar =', ystar)
         # accept only real roots:
         #print(ystar)
         #ystar = ystar.real[abs(ystar.imag)<1e-8][0]
@@ -380,7 +389,7 @@ class bigravity_cosmology(cosmology):
         #print(ystar)
         #print(self.log10mg)
         
-        print(ystar)
+        #print(ystar)
         
         mg = np.sqrt(ystar*(B1+2*ystar*B2+ystar**2*B3)) * self.H0
 
@@ -395,10 +404,20 @@ class bigravity_cosmology(cosmology):
         
         B4 = 3*B2*(10.**self.log10alpha)**2
 
-        ystar = np.roots([B4*(1/(1 + 10.**(2*self.log10alpha))),
-                          3*B3*(1/(1 + 10.**(2*self.log10alpha))),
-                          -3*omegac+3*B2*(1/(1 + 10.**(2*self.log10alpha))),
-                          B1*(1/(1 + 10.**(2*self.log10alpha)))])
+        #ystar is determined by master-eq, plugging in b0 as defined by the dynamical CC-equation:
+        #ystar = np.roots([B4*(1/(1 + 10.**(2*self.log10alpha))),
+        #                  3*B3*(1/(1 + 10.**(2*self.log10alpha))),
+        #                  -3*omegac+3*B2*(1/(1 + 10.**(2*self.log10alpha))),
+        #                  B1*(1/(1 + 10.**(2*self.log10alpha)))])
+        
+        
+        ystar = self.Bianchi(-1)
+        
+        if np.any(np.isnan(ystar)):
+            if self.verbose: print('ystar has returned nan')
+            return np.nan
+        
+        if self.verbose: print('ystar =', ystar)
         # accept only real roots:
         #ystar = ystar.real[abs(ystar.imag)<1e-8][0]
         
@@ -440,11 +459,11 @@ class bigravity_cosmology(cosmology):
         if not self.Omegar is None:
             #a1 = lambda z, b0: (-3*B2 + b0*(10.**self.log10alpha)**2 + (3*(self.Omegar * (1+z)**4 + self.Omegam * (1 + z)**3 + self.Omegak * (1 + z)**2 + self.Omegac)*(1 + (10.**self.log10alpha)**2)))/B3/(10.**self.log10alpha)**2+0j
             # a1 should only contain CC, rad and mat components of densities: (KMA)
-            a1 = lambda z, b0: (-3*B2 + b0*(10.**self.log10alpha)**2 + (3*(self.Omegar * (1+z)**4 + self.Omegam * (1 + z)**3 + self.Omegac)*(1 + (10.**self.log10alpha)**2)))/B3/(10.**self.log10alpha)**2+0j
+            a1 = lambda z, b0: (-3*B2 + b0*(10.**self.log10alpha)**2 + (3*(self.Omegar * (1+z)**4 + self.Omegam * (1 + z)**3 + self.Omegac)*(10.**self.log10alpha)**2))/B3/(10.**self.log10alpha)**2+0j
         else:
             #a1 = lambda z, b0: (-3*B2 + b0*(10.**self.log10alpha)**2 + (3*(self.Omegam * (1 + z)**3 + self.Omegak * (1 + z)**2 + self.Omegac)*(1 + (10.**self.log10alpha)**2)))/B3/(10.**self.log10alpha)**2+0j
             # a1 should only contain CC, rad and mat components of densities: (KMA)
-            a1 = lambda z, b0: (-3*B2 + b0*(10.**self.log10alpha)**2 + (3*(self.Omegam * (1 + z)**3 + self.Omegac)*(1 + (10.**self.log10alpha)**2)))/B3/(10.**self.log10alpha)**2+0j
+            a1 = lambda z, b0: (-3*B2 + b0*(10.**self.log10alpha)**2 + (3*(self.Omegam * (1 + z)**3 + self.Omegac)*(10.**self.log10alpha)**2))/B3/(10.**self.log10alpha)**2+0j
         
         a2 = (3*B1)/B3 - 3*1/(10.**self.log10alpha)**2+0j
         
